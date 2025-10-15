@@ -1,0 +1,8 @@
+model RolePermission {
+  id             String   @id @default(uuid())
+  role_id        String
+  permission_key String?
+  created_at     DateTime @default(now())
+
+  role Role @relation(fields: [role_id], references: [id])
+}

@@ -1,0 +1,25 @@
+model AuditLogs {
+  id          String   @id @default(uuid())
+  tenant_id   String?
+  user_id     String?
+  actor_role  String? // "admin", "user", "system"
+  module      String? // e.g. "chat", "knowledge_base", "user_mgmt"
+  action      String // e.g. "CREATE", "UPDATE", "DELETE", "LOGIN"
+  target_type String? // e.g. "Message", "Article", "User"
+  target_id   String? // ID of the target entity
+  status      String? // e.g. "SUCCESS", "FAILED"
+  ip_address  String?  @db.VarChar(100)
+  user_agent  String?  @db.Text
+  description String? // short summary
+  metadata    Json? // flexible extra info (old/new values, etc.)
+  created_at  DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenant_id], references: [id])
+  user   User?   @relation(fields: [user_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([user_id])
+  @@index([action])
+  @@index([module])
+  @@index([created_at])
+}

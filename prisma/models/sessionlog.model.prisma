@@ -1,0 +1,15 @@
+model SessionLog {
+  id         String   @id @default(uuid())
+  session_id String
+  event      String?  @db.VarChar(100)
+  provider   String?  @db.VarChar(50)
+  ip_address String?  @db.VarChar(100)
+  user_agent String?  @db.Text
+  details    Json?
+  created_at DateTime @default(now())
+
+  session Session @relation(fields: [session_id], references: [id])
+
+  @@index([session_id])
+  @@index([event])
+}

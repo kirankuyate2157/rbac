@@ -1,0 +1,9 @@
+model BillingPlan {
+  id           String   @id @default(uuid())
+  name         String?
+  monthly_fee  Decimal?
+  x_per_charge Decimal?
+  limits       Json?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+}

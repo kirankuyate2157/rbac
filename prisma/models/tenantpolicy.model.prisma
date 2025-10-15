@@ -1,0 +1,11 @@
+model TenantPolicy {
+  id               String   @id @default(uuid())
+  tenant_id        String
+  storage_limit_mb Int?     @default(1024)
+  allow_auto_sync  Boolean? @default(true)
+  created_by       String?
+  updated_at       DateTime @updatedAt
+
+  tenant    Tenant @relation(fields: [tenant_id], references: [id])
+  createdBy User?  @relation(fields: [created_by], references: [id])
+}

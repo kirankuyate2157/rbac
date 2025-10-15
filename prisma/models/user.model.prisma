@@ -1,0 +1,30 @@
+model User {
+  id            String    @id @default(uuid())
+  tenant_id     String?
+  email         String    @unique
+  full_name     String?
+  username      String?
+  password_hash String?
+  auth_provider String?
+  role          String?
+  status        String?
+  last_login_at DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  access_token  String?
+  refresh_token String?
+  ip_address    String?
+  user_agent    String?
+
+  tenant     Tenant?      @relation(fields: [tenant_id], references: [id])
+  userOrgMap UserOrgMap[]
+  sessions   Session[]
+  auditLogs  AuditLogs[]
+
+  tenantAdminOf Tenant[]       @relation("TenantAdmin")
+  TenantPolicy  TenantPolicy[]
+
+  @@index([email])
+  @@index([tenant_id])
+  @@index([role])
+}

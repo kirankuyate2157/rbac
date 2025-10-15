@@ -1,0 +1,12 @@
+model UserOrgMap {
+  id          String   @id @default(uuid())
+  user_id     String
+  tenant_id   String
+  role_in_org String?
+  created_at  DateTime @default(now())
+
+  user   User   @relation(fields: [user_id], references: [id])
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@unique([user_id, tenant_id])
+}
