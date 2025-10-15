@@ -41,6 +41,8 @@ model BillingPlan {
   limits       Json?
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
+  tenant_id    String?
+  tenant       Tenant?  @relation(fields: [tenant_id], references: [id])
 }
 
 model Role {
@@ -125,11 +127,12 @@ model Tenant {
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 
-  users      User[]
-  userOrgMap UserOrgMap[]
-  roles      Role[]
-  sessions   Session[]
-  auditLogs  AuditLogs[]
+  users       User[]
+  userOrgMap  UserOrgMap[]
+  roles       Role[]
+  sessions    Session[]
+  auditLogs   AuditLogs[]
+  billingPlan BillingPlan[]
 
   adminUser      User?          @relation("TenantAdmin", fields: [default_admin_user_id], references: [id])
   tenantPolicies TenantPolicy[] // change to one-to-many
@@ -189,4 +192,14 @@ model UserOrgMap {
   tenant Tenant @relation(fields: [tenant_id], references: [id])
 
   @@unique([user_id, tenant_id])
+}
+
+model Idempotency {
+  key        String    @id @default(uuid())
+  namespace  String
+  statusCode Int?
+  response   Json?
+  headers    Json?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime?
 }

@@ -14,6 +14,7 @@ model Tenant {
   roles      Role[]
   sessions   Session[]
   auditLogs  AuditLogs[]
+  billingPlan BillingPlan[]
 
   adminUser      User?          @relation("TenantAdmin", fields: [default_admin_user_id], references: [id])
   tenantPolicies TenantPolicy[] // change to one-to-many
