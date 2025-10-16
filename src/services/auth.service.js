@@ -73,69 +73,83 @@ export const authService = {
 
     async loginUser({ email, password }, req) {
         const user = await authRepository.findUserByEmail(email);
+
+        // Helper to log attempts
+        const logAttempt = async ({ success, reason, session_id = null }) => {
+            await authRepository.logSessionAttempt({
+
+                session_id,
+                event: "login_attempt",
+                details: {
+                    emailAttempt: email,
+                    success,
+                    reason,
+                    user_id: user?.id || null,
+                },
+                req
+            });
+        };
+
         if (!user) {
-            await authRepository.logSessionAttempt(null, email, false, "no_user");
+            await logAttempt({ success: false, reason: "no_user" });
+            throw { status: 401, message: "Invalid credentials" };
+        }
+        if (!verifyPassword(password, user.password_hash)) {
+            await logAttempt({ success: false, reason: "bad_password" });
             throw { status: 401, message: "Invalid credentials" };
         }
 
-        if (!verifyPassword(password, user.passwordHash)) {
-            await authRepository.logSessionAttempt(user.id, email, false, "bad_password");
-            throw { status: 401, message: "Invalid credentials" };
+        if (user.status !== "active") {
+            await logAttempt({ success: false, reason: "inactive_user_attempting_to_login" });
+            throw { status: 403, message: "User inactive" };
         }
 
-        if (user.status !== "active") throw { status: 403, message: "User inactive" };
-
+        // Get tenant mapping
         const mapping = await authRepository.getUserTenant(user.id);
         const tenant_id = mapping?.tenant_id ?? null;
 
-        const tokens = {
-            access_token: signAccessToken({ user_id: user.id, tenant_id, token_version: user.token_version }),
-            refresh_token: signRefreshToken({ user_id: user.id, tenant_id, token_version: user.token_version })
-        };
 
-        await authRepository.createSession(user.id, tenant_id, req);
-        // 5️⃣ Audit logs (fire & forget)
-        writeAudit({
-            tenantId: tenant.id,
-            userId: user.id,
-            module: "tenant_mgmt",
-            action: "CREATE",
-            target_type: "Tenant",
-            description: `Tenant "${company_name}" created`,
-            metadata: { route: "/auth/register", ip: req.ip }
-        }).catch(log.error);
+        // Log successful login with session ID
+        await logAttempt({ success: true, reason: "logged_successfully" });
 
+        // Audit login
         writeAudit({
-            tenantId: tenant.id,
+            tenantId: tenant_id,
             userId: user.id,
             module: "user_mgmt",
-            action: "CREATE",
+            action: "LOGIN",
             target_type: "User",
-            description: `Admin user "${user.email}" created for tenant`,
-            metadata: { route: "/auth/register", ip: req.ip }
+            description: `User "${user.email}" logged in`,
+            metadata: { route: "/auth/login", ip: req.ip }
         }).catch(log.error);
+
         return {
-            user: { id: user.id, email: user.email, full_name: user.fullName },
-            tokens
+            tenant_id: tenant_id,
+            user: { id: user.id, full_name: user.full_name, email: user.email },
         };
     },
 
 
-    async refreshToken({ refresh_token }) {
+    async refreshToken({ refresh_token, }) {
         try {
             const payload = jwt.verify(refresh_token, process.env.REFRESH_SECRET);
             const user = await authRepository.findUserById(payload.user_id);
             if (!user) throw new Error("Invalid refresh token");
             if (payload.token_version !== user.token_version) throw new Error("Token revoked");
 
-            const newAccess = signAccessToken({ user_id: user.id, tenant_id: payload.tenant_id, token_version: user.token_version });
-            const newRefresh = signRefreshToken({ user_id: user.id, tenant_id: payload.tenant_id, token_version: user.token_version });
+            const newAccess = signAccessToken({ user_id: user.id, tenant_id: payload.tenant_id, session_id: payload.session_id, token_version: user.token_version });
+            await SessionRepository.logEvent({
+                session_id: payload.session_id,
+                event: "session.refreshed",
+                details: { user_id: data.user_id, ip: req.ip, user_agent: req.headers["user-agent"] }
+            }, req);
 
-            return { access_token: newAccess, refresh_token: newRefresh };
+            return { access_token: newAccess, refresh_token };
         } catch (err) {
             throw { status: 401, message: "Invalid or expired refresh token" };
         }
     },
+
     logout: async ({ user_id, sessionId }) => {
         await authRepository.revokeSession(sessionId, user_id);
         await authRepository.logEvent({ sessionId, user_id, event: "logout" });

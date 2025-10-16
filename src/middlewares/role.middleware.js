@@ -1,104 +1,99 @@
-// src/middlewares/role.middleware.js
-
-// ============================================================================
-// 🔒 requirePermission(permissionKey)
-// ----------------------------------------------------------------------------
-// Ensures the current user has the required permission for the current tenant.
-//
-// Works with:
-//   - JWT-authenticated users (req.user / req.auth)
-//   - Prisma-based role & permission mappings
-//   - Multi-tenant structure (userOrgMap -> role -> permissions)
-//
-// Usage:
-//   router.post('/api/tenant/:tenantId/resource', authMiddleware, requirePermission('RESOURCE_CREATE'), controllerFn)
-// ============================================================================
-
-import prisma from "../config/db.js";
-
 /**
- * Express middleware factory to enforce permission-based access.
- * @param {string} permissionKey - The required permission key for the route.
- * @returns {Function} Express middleware function.
+ * 🔒 Permission-based access middleware
+ * ----------------------------------------------------------------------------
+ * Checks if the authenticated user has the required permission key for a route.
+ * Supports:
+ *   - Tenant-specific roles
+ *   - Inherited permissions from parent roles
+ *   - Superadmin global override
+ *   - Optional session validation
+ *
+ * @param {string} permissionKey - The permission key required to access the route.
+ *                                  Examples:
+ *                                    "🔵admin:user:read"      → Tenant admin read users
+ *                                    "🟢user:profile:read:self" → Normal user can read own profile
+ *                                    "🔴superadmin:tenant:manage" → Global superadmin access
+ *
+ * @param {Object} [options] - Optional behavior configuration
+ * @param {boolean} [options.allowSuperAdmin=true] - If true, users with role "superadmin" bypass tenant checks
+ *
+ * @returns {Function} Express middleware
+ *
+ * @example
+ * // Tenant admin route
+ * router.get("/tenant/:tenantId/users", permit("🔵admin:user:read"), getUsers);
+ *
+ * @example
+ * // Normal user route
+ * router.get("/profile", permit("🟢user:profile:read:self"), getProfile);
+ *
+ * @example
+ * // Superadmin route
+ * router.delete("/tenant/:tenantId", permit("🔴superadmin:tenant:manage"), deleteTenant);
+ *
+ * @throws {Error} If permissionKey is missing
+ *
+ * Behavior:
+ *   1. Validates authentication (req.user or req.auth)
+ *   2. Resolves tenantId (from params or auth)
+ *   3. Superadmin bypass if allowed
+ *   4. Loads userOrgMap for tenant
+ *   5. Aggregates permissions from role + parent_role
+ *   6. Checks if required permissionKey exists
+ *   7. Optionally validates session (if req.session exists)
+ *   8. Calls next() if all checks pass, otherwise sends 401/403 response
  */
-export function permit(permissionKey) {
-  if (!permissionKey || typeof permissionKey !== "string") {
-    throw new Error("Permission key must be a non-empty string.");
-  }
+export function permit(permissionKey, options = {}) {
+  const { allowSuperAdmin = true } = options;
 
-  return async function (req, res, next) {
+  if (!permissionKey) throw new Error("Permission key required");
+
+  return async (req, res, next) => {
     try {
-      // --------------------------- Auth Validation ---------------------------
-      const authUser = req.user || (req.auth && { id: req.auth.userId, tenantId: req.auth.tenantId });
-      if (!authUser) {
-        return res.status(401).json({
-          status: "error",
-          errors: [{ code: "unauthorized", message: "Missing or invalid authentication" }],
-        });
-      }
+      const authUser = req.user || (req.auth && { id: req.auth.userId, tenantId: req.auth.tenantId, role: req.auth.role });
+      if (!authUser) return res.status(401).json({ status: "error", errors: [{ code: "unauthorized", message: "Missing authentication" }] });
 
       const tenantId = req.params.tenantId || authUser.tenantId;
-      if (!tenantId) {
-        return res.status(400).json({
-          status: "error",
-          errors: [{ code: "missing_tenant", message: "Tenant ID not provided" }],
-        });
-      }
+      if (!tenantId && !allowSuperAdmin) return res.status(400).json({ status: "error", errors: [{ code: "missing_tenant", message: "Tenant ID required" }] });
 
-      // --------------------------- Quick Shortcuts ---------------------------
-      // Owner/admin bypass (global roles)
-      if (["owner", "admin"].includes(authUser.role)) return next();
+      // -------------------- Superadmin bypass --------------------
+      if (allowSuperAdmin && authUser.role === "superadmin") return next();
 
-      // --------------------------- Tenant Mapping ----------------------------
-      const userTenantMap = await prisma.userOrgMap.findFirst({
+      // -------------------- Tenant-specific check ----------------
+      const userMap = await prisma.userOrgMap.findFirst({
         where: { user_id: authUser.id, tenant_id: tenantId },
         include: {
-          role: {
-            include: { permissions: true },
-          },
-        },
+          role: { include: { permissions: true, parent_role: { include: { permissions: true } } } }
+        }
       });
 
-      if (!userTenantMap) {
+      if (!userMap) return res.status(403).json({ status: "error", errors: [{ code: "no_tenant_mapping", message: "User not in this tenant" }] });
+
+      // -------------------- Aggregate permissions ----------------
+      let permissions = (userMap.role.permissions || []).map(p => p.permission_key);
+      if (userMap.role.parent_role) {
+        permissions = [...permissions, ...(userMap.role.parent_role.permissions || []).map(p => p.permission_key)];
+      }
+
+      // -------------------- Check permission ---------------------
+      if (!permissions.includes(permissionKey)) {
         return res.status(403).json({
           status: "error",
-          errors: [{ code: "no_tenant_mapping", message: "User not associated with this tenant" }],
+          errors: [{ code: "permission_denied", message: `Missing permission: ${permissionKey}`, role: userMap.role.name }]
         });
       }
 
-      const role = userTenantMap.role;
-      if (!role) {
-        return res.status(403).json({
-          status: "error",
-          errors: [{ code: "role_not_found", message: "Role not found for user" }],
-        });
+      // -------------------- Optional: session check ----------------
+      if (req.session) {
+        if (!req.session.is_active || new Date(req.session.expires_at) < new Date()) {
+          return res.status(401).json({ status: "error", errors: [{ code: "session_invalid", message: "Session inactive or expired" }] });
+        }
       }
 
-      // --------------------------- Permission Validation ---------------------
-      const userPermissions = (role.permissions || []).map((p) => p.key || p.permission_key);
-      const hasPermission = userPermissions.includes(permissionKey);
-
-      if (!hasPermission) {
-        return res.status(403).json({
-          status: "error",
-          errors: [
-            {
-              code: "permission_denied",
-              message: `You lack permission: ${permissionKey}`,
-              role: role.name,
-            },
-          ],
-        });
-      }
-
-      // --------------------------- Pass Control ------------------------------
       next();
     } catch (err) {
-      console.error("[requirePermission] Error verifying permission:", err);
-      return res.status(500).json({
-        status: "error",
-        errors: [{ code: "server_error", message: "Internal server error", detail: err.message }],
-      });
+      console.error("[permit] error:", err);
+      res.status(500).json({ status: "error", errors: [{ code: "server_error", message: err.message }] });
     }
   };
 }

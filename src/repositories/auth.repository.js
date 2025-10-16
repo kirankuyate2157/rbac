@@ -45,17 +45,39 @@ export const authRepository = {
                 id: uuidv4(),
                 user_id,
                 tenant_id,
-                ipAddress: req.ip,
+                ip_address: req.ip,
                 deviceInfo: req.headers["user-agent"],
                 token_version: 0,
                 expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30)
             }
         }),
 
-    logSessionAttempt: (user_id, emailAttempt, success, reason) =>
-        prisma.sessionLog.create({
-            data: { id: uuidv4(), user_id, emailAttempt, success, reason }
-        }),
+    logSessionAttempt: async ({
+        session_id = null,
+        event = "generic_event",
+        details = {},
+        req = null
+    }) => {
+        try {
+            const logEntry = await prisma.sessionLog.create({
+                data: {
+                    id: uuidv4(),
+                    session_id,          // optional
+                    event,
+                    provider: "local",   // default, can be customized if needed
+                    ip_address: req?.ip || null,
+                    user_agent: req?.headers?.["user-agent"] || null,
+                    details,
+                },
+            });
+            return logEntry;
+        } catch (err) {
+            console.error("Error logging session attempt:", err);
+            // Don't break main flow
+            return null;
+        }
+    },
+
     revokeSession: async (sessionId, user_id) => {
         return prisma.session.updateMany({
             where: { id: sessionId, user_id, isActive: true },

@@ -31,23 +31,6 @@ export const createSessionForResponse = async ({ req, res, user, tenant_id, resp
   });
 
   await SessionService.updateRefreshToken(session.id, refreshToken);
-
-  // Set cookies
-  res.cookie("access_token", accessToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    sameSite: "lax",
-  });
-
-  res.cookie("refresh_token", refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-    sameSite: "lax",
-  });
-
-  // Attach session info to response body
   return {
     ...responseBody,
     session_id: session.id,

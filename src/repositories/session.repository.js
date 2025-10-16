@@ -113,6 +113,10 @@ export const SessionRepository = {
         return prisma.session.count({ where: { user_id, is_active: true } });
     },
 
+    async listSessionsForUser(user_id) {
+        return SessionRepository.findAllByUser(user_id);
+    }
+    ,
     /**
      * Deactivate older sessions beyond the allowed limit
      */
