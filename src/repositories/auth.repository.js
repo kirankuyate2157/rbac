@@ -78,24 +78,33 @@ export const authRepository = {
         }
     },
 
-    revokeSession: async (sessionId, user_id) => {
+    revokeSession: async (session_id, user_id) => {
         return prisma.session.updateMany({
-            where: { id: sessionId, user_id, isActive: true },
-            data: { isActive: false, revokedAt: new Date() },
+            where: { id: session_id, user_id, is_active: true },
+            data: { is_active: false, revoked_at: new Date() },
         });
     },
 
     revokeAllSessions: async (user_id) => {
         return prisma.session.updateMany({
-            where: { user_id, isActive: true },
-            data: { isActive: false, revokedAt: new Date() },
+            where: { user_id, is_active: true },
+            data: { is_active: false, revoked_at: new Date() },
         });
     },
 
-    logEvent: async ({ sessionId, user_id, event }) => {
-        return prisma.sessionLog.create({
-            data: { sessionId, user_id, event, createdAt: new Date() },
-        });
+    logEvent: async ({ session_id, user_id, event, provider, ip_address, user_agent, details }) => {
+        const log = await prisma.sessionLog.create({
+            data: {
+                id: uuidv4(),
+                session: { connect: { id: session_id } }, 
+                event,
+                provider,
+                ip_address,
+                user_agent,
+                details,
+                created_at: new Date(),
+            }
+        })
     },
 
     logGlobalEvent: async (user_id, event) => {

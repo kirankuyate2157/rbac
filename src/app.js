@@ -1,6 +1,7 @@
 // src/app.js
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
 import { apiRateLimiter } from "./middlewares/rateLimit.middleware.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
@@ -9,6 +10,7 @@ import  swaggerUi  from 'swagger-ui-express';
 
 
 const app = express();
+app.use(cookieParser());
 
 // Middleware setup
 app.use(cors());

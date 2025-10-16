@@ -168,8 +168,6 @@ model User {
   last_login_at DateTime?
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
-  access_token  String?
-  refresh_token String?
   ip_address    String?
   user_agent    String?
 

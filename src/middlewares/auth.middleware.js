@@ -18,25 +18,32 @@ import prisma from "../config/db.js";
  */
 export async function authenticate(req, res, next) {
   try {
+    let token = null;
+    // 1️⃣ Try Authorization header
     const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    }
+
+    // 2️⃣ Fallback to cookie
+    if (!token && req.cookies?.access_token) {
+      token = req.cookies.access_token;
+    }
 
     // --------------------------- Missing Token ------------------------------
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+
+    if (!token) {
       return res.status(401).json({
         status: "error",
         errors: [
-          {
-            code: "unauthorized",
-            message: "Missing or invalid Authorization header",
-          },
+          { code: "unauthorized", message: "No token provided (header or cookie)" },
         ],
       });
     }
 
-    const token = authHeader.split(" ")[1];
     const decoded = verifyAccessToken(token);
-
-    if (!decoded?.userId || !decoded?.tenantId) {
+  
+    if (!decoded?.user_id || !decoded?.tenant_id) {
       return res.status(401).json({
         status: "error",
         errors: [
@@ -47,12 +54,11 @@ export async function authenticate(req, res, next) {
 
     // --------------------------- Fetch User --------------------------------
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: decoded.user_id },
       select: {
         id: true,
         status: true,
-        tokenVersion: true,
-        tenantId: true,
+        tenant_id: true,
         role: true,
       },
     });

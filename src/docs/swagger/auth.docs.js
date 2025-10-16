@@ -29,10 +29,10 @@ export const authSchemas = {
 
   Refresh: {
     type: "object",
-    required: ["refresh_token"],
-    properties: {
-      refresh_token: { type: "string", example: "eyJhbGciOiJI..." },
-    },
+    // required: ["refresh_token"],
+    // properties: {
+    //   refresh_token: { type: "string", example: "eyJhbGciOiJI..." },
+    // },
   },
 
   TokenResponse: {
@@ -102,17 +102,17 @@ export const authPaths = {
   },
 
   "/api/v1/auth/refresh": {
-    post: {
+    get: {
       tags: ["Auth"],
       summary: "Refresh access token using refresh token",
-      requestBody: {
-        required: true,
-        content: {
-          "application/json": {
-            schema: { $ref: "#/components/schemas/Refresh" },
-          },
-        },
-      },
+      // requestBody: {
+      //   required: true,
+      //   content: {
+      //     "application/json": {
+      //       schema: { $ref: "#/components/schemas/Refresh" },
+      //     },
+      //   },
+      // },
       responses: {
         200: {
           description: "Tokens refreshed",

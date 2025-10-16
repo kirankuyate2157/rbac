@@ -1,12 +1,13 @@
 // src/services/auth.service.js
 import { authRepository } from "../repositories/auth.repository.js";
-import { hashPassword, verifyPassword, signAccessToken, signRefreshToken } from "../utils/auth.js";
+import { hashPassword, verifyPassword, signAccessToken, signRefreshToken, verifyRefreshToken } from "../utils/auth.js";
 import prisma from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
 import log from "../config/logger.js";
 import { emailService } from "./email.service.js";
 import { writeAudit } from "../middlewares/auditLogger.middleware.js";
+import { SessionRepository } from "../repositories/session.repository.js";
 
 export const authService = {
     async registerTenant(data, req) {
@@ -130,29 +131,42 @@ export const authService = {
     },
 
 
-    async refreshToken({ refresh_token, }) {
+    async refreshToken({ refresh_token, req }) {
         try {
-            const payload = jwt.verify(refresh_token, process.env.REFRESH_SECRET);
-            const user = await authRepository.findUserById(payload.user_id);
-            if (!user) throw new Error("Invalid refresh token");
-            if (payload.token_version !== user.token_version) throw new Error("Token revoked");
+            const payload = verifyRefreshToken(refresh_token);
 
-            const newAccess = signAccessToken({ user_id: user.id, tenant_id: payload.tenant_id, session_id: payload.session_id, token_version: user.token_version });
+            const user = await authRepository.findUserById(payload.user_id);
+            const session = await SessionRepository.findById(payload?.session_id)
+            if (!user) throw new Error("Invalid refresh token");
+            if (payload.token_version !== session.token_version) throw new Error("Token revoked");
+
+            const newAccess = signAccessToken({ user_id: user.id, tenant_id: payload.tenant_id, session_id: session.session_id, token_version: session.token_version });
+
             await SessionRepository.logEvent({
                 session_id: payload.session_id,
                 event: "session.refreshed",
-                details: { user_id: data.user_id, ip: req.ip, user_agent: req.headers["user-agent"] }
+                details: { user_id: user.id, ip: req.ip, user_agent: req.headers["user-agent"] }
             }, req);
 
             return { access_token: newAccess, refresh_token };
         } catch (err) {
+            console.log(err)
             throw { status: 401, message: "Invalid or expired refresh token" };
         }
     },
 
-    logout: async ({ user_id, sessionId }) => {
-        await authRepository.revokeSession(sessionId, user_id);
-        await authRepository.logEvent({ sessionId, user_id, event: "logout" });
+    logout: async ({ user_id, session_id, req = null }) => {
+        await authRepository.revokeSession(session_id, user_id);
+        await authRepository.logEvent({
+            session_id,                // optional, can be null if session not found
+            user_id,                   // optional scalar
+            event: "logout",
+            provider: "local",         // optional, can pass auth provider
+            ip_address: req?.ip || null,
+            user_agent: req?.headers["user-agent"] || null,
+            details: { reason: "manual logout", user_id },
+        });
+
     },
 
     logoutAllDevices: async ({ user_id }) => {

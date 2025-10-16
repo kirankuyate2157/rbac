@@ -54,18 +54,15 @@ export const login = async (req, res) => {
 
   try {
     const data = await authService.loginUser(parsed.data, req);
-    // create session + cookies
     const responseWithSession = await createSessionForResponse({
       req,
       res,
       user: data.user,
-      tenant_id: data.user.tenant_id,
+      tenant_id: data.tenant_id,
       responseBody: { status: "success", data, errors: null },
     });
-
-
     // set cookies
-    setAuthCookies(res, data.access_token, data.refresh_token);
+    setAuthCookies(res, responseWithSession.access_token, responseWithSession.refresh_token);
 
     return res.status(201).json(responseWithSession);
   } catch (err) {
@@ -91,7 +88,7 @@ export const refresh = async (req, res) => {
     }
 
     const data = await authService.refreshToken({
-      refresh_token: refreshToken,
+      refresh_token: refreshToken, req
     });
 
     // reset cookies
@@ -115,16 +112,17 @@ export const refresh = async (req, res) => {
 // -------------------- Logout --------------------
 export const logout = async (req, res) => {
   try {
-    const userId = req.auth.userId;
-    const sessionId = req.auth.sessionId;
+    console.log("gg : ", req.auth)
+    const user_id = req.auth.user_id;
+    const session_id = req.auth.session_id;
 
-    await authService.logout({ user_id: userId, sessionId });
+    await authService.logout({ user_id, session_id, req });
 
     clearAuthCookies(res);
 
     return res.json({ status: "success", message: "Logged out successfully" });
   } catch (err) {
-    log.error("Logout error:", err);
+    log.raw("Logout error:", err);
     return res
       .status(500)
       .json({ status: "error", message: "Internal server error" });

@@ -4,7 +4,6 @@ import { signAccessToken, signRefreshToken } from "./auth.js";
 
 export const createSessionForResponse = async ({ req, res, user, tenant_id, responseBody }) => {
   if (!user || !tenant_id) return responseBody;
-
   const device = {
     id: req.headers["x-device-id"],
     type: req.headers["x-device-type"] || "web",

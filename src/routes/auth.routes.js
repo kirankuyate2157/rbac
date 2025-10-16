@@ -10,7 +10,7 @@ const router = express.Router();
 // Public routes
 router.post("/register", register, sessionMiddleware());
 router.post("/login", login);
-router.post("/refresh", refresh);
+router.get("/refresh", refresh);
 
 // Protected routes
 router.post("/logout", authenticate, logout);
