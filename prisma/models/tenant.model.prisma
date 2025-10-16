@@ -9,12 +9,13 @@ model Tenant {
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 
-  users      User[]
-  userOrgMap UserOrgMap[]
-  roles      Role[]
-  sessions   Session[]
-  auditLogs  AuditLogs[]
+  users       User[]
+  userOrgMap  UserOrgMap[]
+  roles       Role[]
+  sessions    Session[]
+  auditLogs   AuditLogs[]
   billingPlan BillingPlan[]
+  emailOutbox EmailOutbox[]
 
   adminUser      User?          @relation("TenantAdmin", fields: [default_admin_user_id], references: [id])
   tenantPolicies TenantPolicy[] // change to one-to-many

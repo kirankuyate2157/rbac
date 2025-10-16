@@ -56,13 +56,13 @@ export function verifyPassword(plain, hash) {
 /**
  * Signs an access token (short-lived).
  * @param {Object} payload - The payload to include in the token.
- * @param {string} payload.userId - The user ID.
- * @param {string} payload.tenantId - The tenant ID (for multi-tenant systems).
- * @param {number} [payload.tokenVersion] - Optional version for token invalidation.
+ * @param {string} payload.user_id - The user ID.
+ * @param {string} payload.tenant_id - The tenant ID (for multi-tenant systems).
+ * @param {number} [payload.token_version] - Optional version for token invalidation.
  * @returns {string} The signed JWT access token.
  */
 export function signAccessToken(payload) {
-    if (!payload?.userId || !payload?.tenantId)
+    if (!payload?.user_id || !payload?.tenant_id)
         throw new Error("Missing required fields in access token payload.");
 
     return jwt.sign(payload, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
@@ -71,13 +71,13 @@ export function signAccessToken(payload) {
 /**
  * Signs a refresh token (long-lived).
  * @param {Object} payload - The payload to include in the token.
- * @param {string} payload.userId - The user ID.
- * @param {string} payload.tenantId - The tenant ID.
- * @param {number} [payload.tokenVersion] - Optional version for token invalidation.
+ * @param {string} payload.user_id - The user ID.
+ * @param {string} payload.tenant_id - The tenant ID.
+ * @param {number} [payload.token_version] - Optional version for token invalidation.
  * @returns {string} The signed JWT refresh token.
  */
 export function signRefreshToken(payload) {
-    if (!payload?.userId || !payload?.tenantId)
+    if (!payload?.user_id || !payload?.tenant_id)
         throw new Error("Missing required fields in refresh token payload.");
 
     return jwt.sign(payload, REFRESH_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRES });
@@ -111,15 +111,15 @@ export function verifyRefreshToken(token) {
 
 /**
  * Increments a user's token version in DB (used for invalidating refresh tokens).
- * @param {string} userId - ID of the user.
+ * @param {string} user_id - ID of the user.
  * @returns {Promise<Object>} The updated user record.
  */
-export async function invalidateUserTokens(userId) {
-    if (!userId) throw new Error("User ID is required for token invalidation.");
+export async function invalidateUserTokens(user_id) {
+    if (!user_id) throw new Error("User ID is required for token invalidation.");
 
     const updated = await prisma.user.update({
-        where: { id: userId },
-        data: { tokenVersion: { increment: 1 } },
+        where: { id: user_id },
+        data: { token_version: { increment: 1 } },
     });
 
     return updated;
@@ -131,21 +131,21 @@ export async function invalidateUserTokens(userId) {
  * Generates a new pair of access and refresh tokens for a given user.
  * @param {Object} user - The user record.
  * @param {string} user.id - The user's ID.
- * @param {string} user.tenantId - The tenant ID.
- * @param {number} [user.tokenVersion] - Optional token version.
+ * @param {string} user.tenant_id - The tenant ID.
+ * @param {number} [user.token_version] - Optional token version.
  * @returns {{ accessToken: string, refreshToken: string }}
  */
 export function generateAuthTokens(user) {
     const accessToken = signAccessToken({
-        userId: user.id,
-        tenantId: user.tenantId,
-        tokenVersion: user.tokenVersion || 0,
+        user_id: user.id,
+        tenant_id: user.tenant_id,
+        token_version: user.token_version || 0,
     });
 
     const refreshToken = signRefreshToken({
-        userId: user.id,
-        tenantId: user.tenantId,
-        tokenVersion: user.tokenVersion || 0,
+        user_id: user.id,
+        tenant_id: user.tenant_id,
+        token_version: user.token_version || 0,
     });
 
     return { accessToken, refreshToken };

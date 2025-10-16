@@ -66,8 +66,9 @@ export const idempotency = (keyNamespace = "default") => {
               updatedAt: new Date(),
             },
           });
+
         } catch (err) {
-          console.error("[Idempotency Middleware] Error saving response:", err);
+          log.error("[Idempotency Middleware] Error saving response:", err);
         } finally {
           return originalSend(body);
         }
@@ -76,7 +77,7 @@ export const idempotency = (keyNamespace = "default") => {
       // 4️⃣ Continue to controller
       next();
     } catch (err) {
-      console.error("[Idempotency Middleware] Error:", err);
+      log.error("[Idempotency Middleware] Error:", err);
       next(err);
     }
   };

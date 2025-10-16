@@ -5,9 +5,9 @@ const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "KwaysMail API",
+      title: "RBAC API",
       version: "1.0.0",
-      description: "API documentation for KwaysMail backend",
+      description: "API documentation for RBAC backend",
     },
     servers: [
       {

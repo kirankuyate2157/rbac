@@ -133,6 +133,7 @@ model Tenant {
   sessions    Session[]
   auditLogs   AuditLogs[]
   billingPlan BillingPlan[]
+  emailOutbox EmailOutbox[]
 
   adminUser      User?          @relation("TenantAdmin", fields: [default_admin_user_id], references: [id])
   tenantPolicies TenantPolicy[] // change to one-to-many
@@ -143,6 +144,10 @@ model TenantPolicy {
   tenant_id        String
   storage_limit_mb Int?     @default(1024)
   allow_auto_sync  Boolean? @default(true)
+  max_sessions    Int      @default(5)
+  session_expiry  Int      @default(168) // in hours
+  idle_timeout    Int      @default(60)
+  enforce_2fa     Boolean  @default(false)
   created_by       String?
   updated_at       DateTime @updatedAt
 
@@ -168,10 +173,11 @@ model User {
   ip_address    String?
   user_agent    String?
 
-  tenant     Tenant?      @relation(fields: [tenant_id], references: [id])
-  userOrgMap UserOrgMap[]
-  sessions   Session[]
-  auditLogs  AuditLogs[]
+  tenant      Tenant?       @relation(fields: [tenant_id], references: [id])
+  userOrgMap  UserOrgMap[]
+  sessions    Session[]
+  auditLogs   AuditLogs[]
+  emailOutbox EmailOutbox[]
 
   tenantAdminOf Tenant[]       @relation("TenantAdmin")
   TenantPolicy  TenantPolicy[]
@@ -194,6 +200,32 @@ model UserOrgMap {
   @@unique([user_id, tenant_id])
 }
 
+model EmailOutbox {
+  id          String    @id @default(uuid())
+  tenant_id   String? // Optional, link to tenant
+  user_id     String? // Optional, link to user
+  to          String // Recipient email address
+  cc          String? // CC recipients (comma-separated)
+  bcc         String? // BCC recipients (comma-separated)
+  subject     String
+  body        String // HTML or text content
+  attachments Json? // Optional: list of file URLs or metadata
+  isSent      Boolean   @default(false)
+  sentAt      DateTime?
+  scheduledAt DateTime? // For scheduled emails
+  attempts    Int       @default(0) // Number of send attempts
+  lastAttempt DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  tenant Tenant? @relation(fields: [tenant_id], references: [id])
+  user   User?   @relation(fields: [user_id], references: [id])
+
+  @@index([isSent])
+  @@index([scheduledAt])
+  @@index([tenant_id])
+}
+
 model Idempotency {
   key        String    @id @default(uuid())
   namespace  String
@@ -202,4 +234,15 @@ model Idempotency {
   headers    Json?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime?
+}
+
+
+model AppConfig {
+  id           String  @id @default(uuid())
+  key          String  @unique
+  value        String
+  description  String?
+  tenant_id    String? 
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
 }

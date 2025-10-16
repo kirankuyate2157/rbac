@@ -16,7 +16,7 @@ import prisma from "../config/db.js";
  * @param {import("express").Response} res
  * @param {import("express").NextFunction} next
  */
-export async function authMiddleware(req, res, next) {
+export async function authenticate(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
 
@@ -24,7 +24,12 @@ export async function authMiddleware(req, res, next) {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         status: "error",
-        errors: [{ code: "unauthorized", message: "Missing or invalid Authorization header" }],
+        errors: [
+          {
+            code: "unauthorized",
+            message: "Missing or invalid Authorization header",
+          },
+        ],
       });
     }
 
@@ -34,14 +39,22 @@ export async function authMiddleware(req, res, next) {
     if (!decoded?.userId || !decoded?.tenantId) {
       return res.status(401).json({
         status: "error",
-        errors: [{ code: "invalid_payload", message: "Malformed token payload" }],
+        errors: [
+          { code: "invalid_payload", message: "Malformed token payload" },
+        ],
       });
     }
 
     // --------------------------- Fetch User --------------------------------
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, status: true, tokenVersion: true, tenantId: true, role: true },
+      select: {
+        id: true,
+        status: true,
+        tokenVersion: true,
+        tenantId: true,
+        role: true,
+      },
     });
 
     if (!user) {
@@ -60,10 +73,15 @@ export async function authMiddleware(req, res, next) {
     }
 
     // --------------------------- Check Token Version ------------------------
-    if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+    if (
+      decoded.tokenVersion !== undefined &&
+      decoded.tokenVersion !== user.tokenVersion
+    ) {
       return res.status(401).json({
         status: "error",
-        errors: [{ code: "token_revoked", message: "Token revoked or outdated" }],
+        errors: [
+          { code: "token_revoked", message: "Token revoked or outdated" },
+        ],
       });
     }
 
@@ -89,7 +107,8 @@ export async function authMiddleware(req, res, next) {
             err.name === "TokenExpiredError"
               ? "Access token expired"
               : "Invalid or malformed token",
-          detail: process.env.NODE_ENV === "development" ? err.message : undefined,
+          detail:
+            process.env.NODE_ENV === "development" ? err.message : undefined,
         },
       ],
     });

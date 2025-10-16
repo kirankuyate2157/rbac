@@ -20,6 +20,7 @@ model User {
   userOrgMap UserOrgMap[]
   sessions   Session[]
   auditLogs  AuditLogs[]
+  emailOutbox EmailOutbox[]
 
   tenantAdminOf Tenant[]       @relation("TenantAdmin")
   TenantPolicy  TenantPolicy[]

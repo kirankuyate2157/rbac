@@ -1,4 +1,5 @@
 import prisma from "../config/db.js";
+import log from "../config/logger.js";
 
 /**
  * 🔍 Unified Audit Logger Middleware
@@ -76,9 +77,9 @@ export const auditLogger = (options) => {
         // Fire-and-forget to avoid blocking response
         prisma.auditLogs
           .create({ data: entry })
-          .catch((err) => console.error("[AuditLogger] Failed to log:", err));
+          .catch((err) => log.error("[AuditLogger] Failed to log:", err));
       } catch (err) {
-        console.error("[AuditLogger] Unexpected error:", err);
+        log.error("[AuditLogger] Unexpected error:", err);
       }
 
       return originalSend(body);
@@ -123,6 +124,6 @@ export const writeAudit = async (data) => {
 
     await prisma.auditLogs.create({ data: entry });
   } catch (err) {
-    console.error("[writeAudit] Failed to write audit log:", err);
+    log.error("[writeAudit] Failed to write audit log:", err);
   }
 };

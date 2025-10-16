@@ -1,7 +1,7 @@
 // src/app.js
 import express from "express";
 import cors from "cors";
-import userRoutes from "./routes/user.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 import { apiRateLimiter } from "./middlewares/rateLimit.middleware.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import { swaggerDocument } from "./docs/swagger/index.js";
@@ -19,10 +19,11 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 
 // Register routes
-app.use("/api/users", userRoutes);
+app.use("/api/v1/auth", authRoutes);
+// app.use("/api/auth", userRoutes);
 
 // Root endpoint
-app.get("/", (req, res) => res.send("KwaysMail Backend"));
+app.get("/", (req, res) => res.send("RBAC Backend"));
 
 // Error handler (must be last)
 app.use(errorHandler);

@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: kwaysmail_postgres
+    container_name: RBAC_postgres
     restart: always
     env_file: .env
     environment:
@@ -23,7 +23,7 @@ services:
   #   build:
   #     context: ./backend
   #     dockerfile: Dockerfile
-  #   container_name: kwaysmail_backend
+  #   container_name: RBAC_backend
   #   restart: always
   #   env_file: .env
   #   depends_on:
@@ -40,7 +40,7 @@ services:
   #   build:
   #     context: ./frontend
   #     dockerfile: Dockerfile
-  #   container_name: kwaysmail_frontend
+  #   container_name: RBAC_frontend
   #   restart: always
   #   depends_on:
   #     - backend

@@ -1,73 +1,82 @@
 // src/repositories/auth.repository.js
-import { prisma } from "../prisma.js";
+import prisma from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 
 export const authRepository = {
     findUserByEmail: (email) => prisma.user.findUnique({ where: { email } }),
     findUserById: (id) => prisma.user.findUnique({ where: { id } }),
+    findTenantByDomain: (domain) => prisma.tenant.findUnique({ where: { domain } }),
+    createTenant: (tx, id, name, domain, plan_type) =>
+        tx.tenant.create({ data: { id, name, domain, plan_type, status: "active" } }),
 
-    createTenant: (tx, id, name, domain, planType) =>
-        tx.tenant.create({ data: { id, name, domain, planType } }),
+    createUser: (tx, email, full_name, password_hash) =>
+        tx.user.create({ data: { id: uuidv4(), email, full_name, password_hash, status: "active" } }),
 
-    createUser: (tx, email, fullName, passwordHash) =>
-        tx.user.create({ data: { id: uuidv4(), email, fullName, passwordHash, status: "active", tokenVersion: 0 } }),
+    mapUserToTenant: (tx, tenant_id, user_id) =>
+        tx.userOrgMap.create({
+            data: {
+                id: uuidv4(), role_in_org: "owner", user: {
+                    connect: { id: user_id }
+                }, tenant: {
+                    connect: { id: tenant_id }
+                },
+            }
+        }),
 
-    mapUserToTenant: (tx, tenantId, userId) =>
-        tx.userOrgMap.create({ data: { id: uuidv4(), tenantId, userId, roleInOrg: "owner" } }),
+    createDefaultPolicy: (tx, tenant_id) =>
+        tx.tenantPolicy.create({ data: { tenant_id, storage_limit_mb: 1024, allow_auto_sync: false } }),
 
-    createDefaultPolicy: (tx, tenantId) =>
-        tx.tenantPolicy.create({ data: { tenantId, allowCustomSmtp: false, maxMailboxes: 0, storageLimitMb: 1024 } }),
-
-    createDefaultRoles: async (tx, tenantId) => {
-        const role = await tx.role.create({ data: { id: uuidv4(), tenantId, name: "admin", description: "Tenant admin" } });
+    createDefaultRoles: async (tx, tenant_id) => {
+        const role = await tx.role.create({ data: { id: uuidv4(), tenant_id, name: "admin", description: "Tenant admin" } });
         await tx.rolePermission.createMany({
             data: [
-                { id: uuidv4(), roleId: role.id, key: "user:create" },
-                { id: uuidv4(), roleId: role.id, key: "user:update" }
+                { id: uuidv4(), role_id: role.id, permission_key: "user:create" },
+                { id: uuidv4(), role_id: role.id, permission_key: "user:update" }
             ]
         });
     },
 
-    getUserTenant: (userId) =>
-        prisma.userOrgMap.findFirst({ where: { userId }, select: { tenantId: true } }),
+    getUserTenant: (user_id) =>
+        prisma.userOrgMap.findFirst({ where: { user_id }, select: { tenant_id: true } }),
 
-    createSession: (userId, tenantId, req) =>
+    createSession: (user_id, tenant_id, req) =>
         prisma.session.create({
             data: {
                 id: uuidv4(),
-                userId,
-                tenantId,
+                user_id,
+                tenant_id,
                 ipAddress: req.ip,
                 deviceInfo: req.headers["user-agent"],
+                token_version: 0,
                 expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30)
             }
         }),
 
-    logSessionAttempt: (userId, emailAttempt, success, reason) =>
+    logSessionAttempt: (user_id, emailAttempt, success, reason) =>
         prisma.sessionLog.create({
-            data: { id: uuidv4(), userId, emailAttempt, success, reason }
+            data: { id: uuidv4(), user_id, emailAttempt, success, reason }
         }),
-    revokeSession: async (sessionId, userId) => {
+    revokeSession: async (sessionId, user_id) => {
         return prisma.session.updateMany({
-            where: { id: sessionId, userId, isActive: true },
+            where: { id: sessionId, user_id, isActive: true },
             data: { isActive: false, revokedAt: new Date() },
         });
     },
 
-    revokeAllSessions: async (userId) => {
+    revokeAllSessions: async (user_id) => {
         return prisma.session.updateMany({
-            where: { userId, isActive: true },
+            where: { user_id, isActive: true },
             data: { isActive: false, revokedAt: new Date() },
         });
     },
 
-    logEvent: async ({ sessionId, userId, event }) => {
+    logEvent: async ({ sessionId, user_id, event }) => {
         return prisma.sessionLog.create({
-            data: { sessionId, userId, event, createdAt: new Date() },
+            data: { sessionId, user_id, event, createdAt: new Date() },
         });
     },
 
-    logGlobalEvent: async (userId, event) => {
-        return prisma.sessionLog.create({ data: { userId, event, createdAt: new Date() } });
+    logGlobalEvent: async (user_id, event) => {
+        return prisma.sessionLog.create({ data: { user_id, event, createdAt: new Date() } });
     },
 };

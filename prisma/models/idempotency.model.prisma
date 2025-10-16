@@ -1,9 +1,9 @@
 model Idempotency {
-  key         String   @id @default(uuid())
-  namespace   String
-  statusCode  Int?
-  response    Json?
-  headers     Json?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime?
+  key        String    @id @default(uuid())
+  namespace  String
+  statusCode Int?
+  response   Json?
+  headers    Json?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime?
 }

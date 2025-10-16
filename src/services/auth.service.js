@@ -1,9 +1,12 @@
 // src/services/auth.service.js
 import { authRepository } from "../repositories/auth.repository.js";
 import { hashPassword, verifyPassword, signAccessToken, signRefreshToken } from "../utils/auth.js";
-import { prisma } from "../prisma.js";
+import prisma from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
+import log from "../config/logger.js";
+import { emailService } from "./email.service.js";
+import { writeAudit } from "../middlewares/auditLogger.middleware.js";
 
 export const authService = {
     async registerTenant(data, req) {
@@ -11,12 +14,15 @@ export const authService = {
 
         const existing = await authRepository.findUserByEmail(admin.email);
         if (existing) throw { status: 409, message: "Email already registered" };
-
-        const tenantId = uuidv4();
+        if (domain) {
+            const existingDomain = await authRepository.findTenantByDomain(domain)
+            if (existingDomain) throw { status: 409, message: "Domain already registered" };
+        }
+        const tenant_id = uuidv4();
         const passwordHash = hashPassword(admin.password);
 
         const { tenant, user } = await prisma.$transaction(async (tx) => {
-            const tenant = await authRepository.createTenant(tx, tenantId, company_name, domain, plan_type);
+            const tenant = await authRepository.createTenant(tx, tenant_id, company_name, domain, plan_type);
             const user = await authRepository.createUser(tx, admin.email, admin.full_name, passwordHash);
             await authRepository.mapUserToTenant(tx, tenant.id, user.id);
             await authRepository.createDefaultPolicy(tx, tenant.id);
@@ -25,22 +31,36 @@ export const authService = {
         });
 
         // Tokens
-        const accessToken = signAccessToken({ userId: user.id, tenantId, tokenVersion: 0 });
-        const refreshToken = signRefreshToken({ userId: user.id, tenantId, tokenVersion: 0 });
+        const accessToken = signAccessToken({ user_id: user.id, tenant_id, token_version: 0 });
+        const refreshToken = signRefreshToken({ user_id: user.id, tenant_id, token_version: 0 });
 
         // Audit + background welcome email
-        prisma.auditLog.create({
-            data: { actorUserId: user.id, tenantId, action: "tenant.create", route: "/auth/register" }
-        }).catch(console.error);
+        writeAudit({
+            tenantId: tenant.id,
+            userId: user.id,
+            module: "tenant_mgmt",
+            action: "CREATE",
+            target_type: "Tenant",
+            description: `Tenant "${company_name}" created`,
+            metadata: { route: "/auth/register", ip: req?.ip }
+        }).catch(log.error);
 
-        await prisma.emailOutbox.create({
-            data: {
-                id: uuidv4(),
-                tenantId,
-                to: user.email,
-                subject: "Welcome to Kways!",
-                body: "Your tenant has been created successfully."
-            }
+        writeAudit({
+            tenantId: tenant.id,
+            userId: user.id,
+            module: "user_mgmt",
+            action: "CREATE",
+            target_type: "User",
+            description: `Admin user "${user.email}" created for tenant`,
+            metadata: { route: "/auth/register", ip: req?.ip }
+        }).catch(log.error);
+
+        await emailService.queueEmail({
+            tenant_id,
+            user_id: user.id,
+            to: user.email,
+            subject: "Welcome to K-RBAC!",
+            body: "Your tenant has been created successfully."
         });
 
         return {
@@ -66,44 +86,63 @@ export const authService = {
         if (user.status !== "active") throw { status: 403, message: "User inactive" };
 
         const mapping = await authRepository.getUserTenant(user.id);
-        const tenantId = mapping?.tenantId ?? null;
+        const tenant_id = mapping?.tenant_id ?? null;
 
         const tokens = {
-            access_token: signAccessToken({ userId: user.id, tenantId, tokenVersion: user.tokenVersion }),
-            refresh_token: signRefreshToken({ userId: user.id, tenantId, tokenVersion: user.tokenVersion })
+            access_token: signAccessToken({ user_id: user.id, tenant_id, token_version: user.token_version }),
+            refresh_token: signRefreshToken({ user_id: user.id, tenant_id, token_version: user.token_version })
         };
 
-        await authRepository.createSession(user.id, tenantId, req);
-        prisma.auditLog.create({ data: { actorUserId: user.id, tenantId, action: "auth.login", route: "/auth/login" } }).catch(console.error);
+        await authRepository.createSession(user.id, tenant_id, req);
+        // 5️⃣ Audit logs (fire & forget)
+        writeAudit({
+            tenantId: tenant.id,
+            userId: user.id,
+            module: "tenant_mgmt",
+            action: "CREATE",
+            target_type: "Tenant",
+            description: `Tenant "${company_name}" created`,
+            metadata: { route: "/auth/register", ip: req.ip }
+        }).catch(log.error);
 
+        writeAudit({
+            tenantId: tenant.id,
+            userId: user.id,
+            module: "user_mgmt",
+            action: "CREATE",
+            target_type: "User",
+            description: `Admin user "${user.email}" created for tenant`,
+            metadata: { route: "/auth/register", ip: req.ip }
+        }).catch(log.error);
         return {
             user: { id: user.id, email: user.email, full_name: user.fullName },
             tokens
         };
     },
 
+
     async refreshToken({ refresh_token }) {
         try {
             const payload = jwt.verify(refresh_token, process.env.REFRESH_SECRET);
-            const user = await authRepository.findUserById(payload.userId);
+            const user = await authRepository.findUserById(payload.user_id);
             if (!user) throw new Error("Invalid refresh token");
-            if (payload.tokenVersion !== user.tokenVersion) throw new Error("Token revoked");
+            if (payload.token_version !== user.token_version) throw new Error("Token revoked");
 
-            const newAccess = signAccessToken({ userId: user.id, tenantId: payload.tenantId, tokenVersion: user.tokenVersion });
-            const newRefresh = signRefreshToken({ userId: user.id, tenantId: payload.tenantId, tokenVersion: user.tokenVersion });
+            const newAccess = signAccessToken({ user_id: user.id, tenant_id: payload.tenant_id, token_version: user.token_version });
+            const newRefresh = signRefreshToken({ user_id: user.id, tenant_id: payload.tenant_id, token_version: user.token_version });
 
             return { access_token: newAccess, refresh_token: newRefresh };
         } catch (err) {
             throw { status: 401, message: "Invalid or expired refresh token" };
         }
     },
-     logout: async ({ userId, sessionId }) => {
-    await authRepository.revokeSession(sessionId, userId);
-    await authRepository.logEvent({ sessionId, userId, event: "logout" });
-  },
+    logout: async ({ user_id, sessionId }) => {
+        await authRepository.revokeSession(sessionId, user_id);
+        await authRepository.logEvent({ sessionId, user_id, event: "logout" });
+    },
 
-  logoutAllDevices: async ({ userId }) => {
-    await authRepository.revokeAllSessions(userId);
-    await authRepository.logGlobalEvent(userId, "logout_all");
-  },
+    logoutAllDevices: async ({ user_id }) => {
+        await authRepository.revokeAllSessions(user_id);
+        await authRepository.logGlobalEvent(user_id, "logout_all");
+    },
 };

@@ -1,0 +1,25 @@
+model EmailOutbox {
+  id           String   @id @default(uuid())
+  tenant_id    String?       // Optional, link to tenant
+  user_id      String?       // Optional, link to user
+  to           String        // Recipient email address
+  cc           String?       // CC recipients (comma-separated)
+  bcc          String?       // BCC recipients (comma-separated)
+  subject      String
+  body         String        // HTML or text content
+  attachments  Json?         // Optional: list of file URLs or metadata
+  isSent       Boolean  @default(false)
+  sentAt       DateTime?
+  scheduledAt  DateTime?     // For scheduled emails
+  attempts     Int       @default(0) // Number of send attempts
+  lastAttempt  DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  tenant      Tenant? @relation(fields: [tenant_id], references: [id])
+  user        User?   @relation(fields: [user_id], references: [id])
+
+  @@index([isSent])
+  @@index([scheduledAt])
+  @@index([tenant_id])
+}

@@ -2,10 +2,12 @@
 import { z } from "zod";
 import { authService } from "../services/auth.service.js";
 import { v4 as uuidv4 } from "uuid";
-import { refreshSchema,loginSchema, registerSchema } from './../validators/auth.validator';
+import { refreshSchema, loginSchema, registerSchema } from './../validators/auth.validator.js';
+import log from "../config/logger.js";
+import { createSessionForResponse } from "../utils/session.util.js";
 
 // Tenant registration
-export const register = async (req, res) => {
+export const register = async (req, res, next) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
@@ -16,13 +18,24 @@ export const register = async (req, res) => {
 
   try {
     const data = await authService.registerTenant(parsed.data, req);
-    return res.status(201).json({
-      status: "success",
-      data,
-      errors: null
+
+    const responseWithSession = await createSessionForResponse({
+      req,
+      res,
+      user: data.user,
+      tenant_id: data.tenant_id,
+      responseBody: { status: "success", data, errors: null },
     });
+
+    return res.status(201).json(responseWithSession);
+    // return res.status(201).json({
+    //   status: "success",
+    //   data,
+    //   errors: null
+    // });
+
   } catch (err) {
-    console.error("Register error:", err);
+    log.raw("Register error:", err);
     return res.status(err.status || 500).json({
       status: "error",
       errors: [{ message: err.message || "Internal error" }]
@@ -48,7 +61,7 @@ export const login = async (req, res) => {
       errors: null
     });
   } catch (err) {
-    console.error("Login error:", err);
+    log.error("Login error:", err);
     return res.status(err.status || 500).json({
       status: "error",
       errors: [{ message: err.message || "Internal error" }]
@@ -74,7 +87,7 @@ export const refresh = async (req, res) => {
       errors: null
     });
   } catch (err) {
-    console.error("Refresh error:", err);
+    log.error("Refresh error:", err);
     return res.status(err.status || 401).json({
       status: "error",
       errors: [{ message: err.message || "Invalid token" }]
@@ -93,7 +106,7 @@ export const logout = async (req, res) => {
 
     return res.json({ status: "success", message: "Logged out successfully" });
   } catch (err) {
-    console.error("Logout error", err);
+    log.error("Logout error", err);
     return res.status(500).json({ status: "error", message: "Internal server error" });
   }
 };
@@ -105,7 +118,7 @@ export const logoutAllDevices = async (req, res) => {
 
     return res.json({ status: "success", message: "Logged out from all devices" });
   } catch (err) {
-    console.error("LogoutAllDevices error", err);
+    log.error("LogoutAllDevices error", err);
     return res.status(500).json({ status: "error", message: "Internal server error" });
   }
 };
