@@ -1,25 +1,26 @@
 model EmailOutbox {
-  id           String   @id @default(uuid())
-  tenant_id    String?       // Optional, link to tenant
-  user_id      String?       // Optional, link to user
-  to           String        // Recipient email address
-  cc           String?       // CC recipients (comma-separated)
-  bcc          String?       // BCC recipients (comma-separated)
-  subject      String
-  body         String        // HTML or text content
-  attachments  Json?         // Optional: list of file URLs or metadata
-  isSent       Boolean  @default(false)
-  sentAt       DateTime?
-  scheduledAt  DateTime?     // For scheduled emails
-  attempts     Int       @default(0) // Number of send attempts
-  lastAttempt  DateTime?
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
+  id          String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id   String?   @db.Uuid // Optional link to tenant
+  user_id     String?   @db.Uuid // Optional link to user
+  to          String    @db.VarChar(255) // Recipient email address
+  cc          String?   @db.Text // CC recipients (comma-separated)
+  bcc         String?   @db.Text // BCC recipients (comma-separated)
+  subject     String    @db.VarChar(255)
+  body        String    @db.Text // HTML or text content
+  attachments Json? // Optional: list of file URLs or metadata
+  isSent      Boolean   @default(false)
+  sentAt      DateTime? @db.Timestamp(6)
+  scheduledAt DateTime? @db.Timestamp(6) // For scheduled emails
+  attempts    Int       @default(0) // Number of send attempts
+  lastAttempt DateTime? @db.Timestamp(6)
+  created_at  DateTime  @default(dbgenerated("now()")) @db.Timestamp(6)
+  updated_at  DateTime  @updatedAt @db.Timestamp(6)
 
-  tenant      Tenant? @relation(fields: [tenant_id], references: [id])
-  user        User?   @relation(fields: [user_id], references: [id])
+  tenant Tenant? @relation(fields: [tenant_id], references: [id])
+  user   users?  @relation(fields: [user_id], references: [user_id])
 
   @@index([isSent])
   @@index([scheduledAt])
   @@index([tenant_id])
+  @@index([user_id])
 }

@@ -1,0 +1,12 @@
+model RolePermission {
+  id             String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  role_id        String   @db.Uuid
+  permission_key String?  @db.VarChar(255)
+  created_at     DateTime @default(dbgenerated("now()")) @db.Timestamp(6)
+
+  role Role @relation(fields: [role_id], references: [id])
+
+  @@index([role_id])
+  @@index([permission_key])
+  @@index([created_at])
+}

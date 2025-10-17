@@ -1,0 +1,10 @@
+model chat_sessions {
+  session_id   String         @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id      String?        @db.Uuid
+  started_at   DateTime?      @default(now()) @db.Timestamp(6)
+  ended_at     DateTime?      @db.Timestamp(6)
+  kb_list      String[]       @default([])
+  name         String?        @db.VarChar(255)
+  chat_history chat_history[]
+  users        users?         @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+}

@@ -1,0 +1,32 @@
+model Session {
+  id             String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id        String    @db.Uuid
+  tenant_id      String    @db.Uuid
+  device_id      String?   @db.VarChar(255) // Unique device identifier (web, mobile, etc.)
+  device_type    String?   @db.VarChar(100) // e.g., 'web', 'android', 'ios', 'desktop'
+  device_name    String?   @db.VarChar(255) // Human-readable device name
+  ip_address     String?   @db.VarChar(100)
+  user_agent     String?   @db.Text // Browser or app info
+  location       Json? // Optional: geo-info (country, city, lat, lon)
+  created_at     DateTime  @default(now())
+  last_active_at DateTime? @default(now()) // Updated on every API request
+  expires_at     DateTime? // Optional: session expiry
+  revoked_at     DateTime? // When the session was explicitly logged out
+  is_active      Boolean   @default(true)
+  refresh_token  String?   @db.Text // Hashed refresh token for session (if applicable)
+  token_version  Int       @default(0) // For refresh token rotation/invalidation
+  provider       String?   @db.VarChar(50) // e.g., 'local', 'google', 'github'
+  meta           Json? // Any additional session metadata
+
+  // Relations
+  user   Users        @relation(fields: [user_id], references: [user_id])
+  tenant Tenant       @relation(fields: [tenant_id], references: [id])
+  logs   SessionLog[]
+
+  @@index([user_id])
+  @@index([tenant_id])
+  @@index([is_active])
+  @@index([device_id])
+  @@index([created_at])
+  @@index([last_active_at])
+}

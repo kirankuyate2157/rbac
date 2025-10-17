@@ -1,9 +1,13 @@
 model Idempotency {
-  key        String    @id @default(uuid())
-  namespace  String
+  key        String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  namespace  String    @db.VarChar(255)
   statusCode Int?
   response   Json?
   headers    Json?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime?
+  createdAt  DateTime  @default(dbgenerated("now()")) @db.Timestamp(6)
+  updatedAt  DateTime? @db.Timestamp(6)
+
+  @@index([namespace])
+  @@index([statusCode])
+  @@index([createdAt])
 }

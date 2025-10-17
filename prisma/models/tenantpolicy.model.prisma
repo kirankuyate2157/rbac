@@ -1,11 +1,15 @@
 model TenantPolicy {
-  id               String   @id @default(uuid())
-  tenant_id        String
+  id               String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id        String   @db.Uuid
   storage_limit_mb Int?     @default(1024)
   allow_auto_sync  Boolean? @default(true)
-  created_by       String?
+  max_sessions     Int      @default(5)
+  session_expiry   Int      @default(168) // in hours
+  idle_timeout     Int      @default(60)
+  enforce_2fa      Boolean  @default(false)
+  created_by       String?  @db.Uuid
   updated_at       DateTime @updatedAt
 
   tenant    Tenant @relation(fields: [tenant_id], references: [id])
-  createdBy User?  @relation(fields: [created_by], references: [id])
+  createdBy users? @relation(fields: [created_by], references: [user_id])
 }

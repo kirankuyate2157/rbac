@@ -1,7 +1,7 @@
 model Session {
-  id             String    @id @default(uuid())
-  user_id        String
-  tenant_id      String
+  id             String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id        String    @db.Uuid
+  tenant_id      String    @db.Uuid
   device_id      String?   @db.VarChar(255) // Unique device identifier (web, mobile, etc.)
   device_type    String?   @db.VarChar(100) // e.g., 'web', 'android', 'ios', 'desktop'
   device_name    String?   @db.VarChar(255) // Human-readable device name
@@ -19,7 +19,7 @@ model Session {
   meta           Json? // Any additional session metadata
 
   // Relations
-  user   User         @relation(fields: [user_id], references: [id])
+  user   users        @relation(fields: [user_id], references: [user_id])
   tenant Tenant       @relation(fields: [tenant_id], references: [id])
   logs   SessionLog[]
 

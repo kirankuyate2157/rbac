@@ -1,0 +1,15 @@
+model Invoice {
+  id                String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_billing_id String    @db.Uuid
+  amount            Decimal
+  currency          String?   @default("USD")
+  status            String    @default("PAID") // PAID, FAILED, REFUNDED
+  invoice_date      DateTime  @default(now())
+  due_date          DateTime?
+  paid_date         DateTime?
+  payment_ref       String? // transaction id, stripe id etc.
+  metadata          Json?
+  created_at        DateTime  @default(dbgenerated("now()")) @db.Timestamp(6)
+
+  tenantBilling TenantBilling @relation(fields: [tenant_billing_id], references: [id])
+}

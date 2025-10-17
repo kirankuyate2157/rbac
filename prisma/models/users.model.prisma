@@ -1,0 +1,38 @@
+model users {
+  user_id       String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id     String?  @db.Uuid
+  email         String   @unique @db.VarChar(255)
+  full_name     String?  @db.VarChar(255)
+  username      String?  @unique @db.VarChar(100)
+  password_hash String?
+  auth_provider String?  @db.VarChar(50)
+  role          String?  @default("user") @db.VarChar(50)
+  status        String?  @db.VarChar(50)
+  last_login_at DateTime?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  // existing relations
+  chat_history  chat_history[]
+  chat_sessions chat_sessions[]
+  knowledge_access_knowledge_access_granted_byTousers knowledge_access[] @relation("knowledge_access_granted_byTousers")
+  knowledge_access_knowledge_access_user_idTousers    knowledge_access[] @relation("knowledge_access_user_idTousers")
+  knowledge_base  knowledge_base[]
+  knowledge_files knowledge_files[]
+  questions_log   questions_log[]
+  user_activity   user_activity[]
+
+  // new relations
+  tenant      Tenant?       @relation(fields: [tenant_id], references: [id])
+  userOrgMap  UserOrgMap[]
+  sessions    Session[]
+  auditLogs   AuditLogs[]
+  emailOutbox EmailOutbox[]
+
+  tenantAdminOf Tenant[]       @relation("TenantAdmin")
+  TenantPolicy  TenantPolicy[]
+
+  @@index([email])
+  @@index([tenant_id])
+  @@index([role])
+}

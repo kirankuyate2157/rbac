@@ -1,0 +1,15 @@
+model BillingPlan {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  name        String   @unique
+  description String?
+  plan_type   String?  @default("BASIC")
+  monthly_fee Decimal  @default(0)
+  yearly_fee  Decimal? @default(0)
+  currency    String?  @default("USD")
+  limits      Json? // { max_users: 10, storage_mb: 500, max_projects: 3 }
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  tenantBillings TenantBilling[] // tenants subscribed to this plan
+}

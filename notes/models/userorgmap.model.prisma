@@ -1,0 +1,15 @@
+model UserOrgMap {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id     String   @db.Uuid
+  tenant_id   String   @db.Uuid
+  role_in_org String?  @db.VarChar(50)
+  created_at  DateTime @default(dbgenerated("now()")) @db.Timestamp(6)
+
+  // Relations
+  user   Users  @relation(fields: [user_id], references: [user_id])
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@unique([user_id, tenant_id])
+  @@index([tenant_id])
+  @@index([user_id])
+}

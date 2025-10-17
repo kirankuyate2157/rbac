@@ -1,0 +1,308 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model AuditLogs {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id   String   @db.Uuid
+  user_id     String   @db.Uuid
+  actor_role  String? // "admin", "user", "system"
+  module      String? // e.g. "chat", "knowledge_base", "user_mgmt"
+  action      String // e.g. "CREATE", "UPDATE", "DELETE", "LOGIN"
+  target_type String? // e.g. "Message", "Article", "User"
+  target_id   String? // ID of the target entity
+  status      String? // e.g. "SUCCESS", "FAILED"
+  ip_address  String?  @db.VarChar(100)
+  user_agent  String?  @db.Text
+  description String? // short summary
+  metadata    Json? // flexible extra info (old/new values, etc.)
+  created_at  DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenant_id], references: [id])
+  user   Users?  @relation(fields: [user_id], references: [user_id])
+
+  @@index([tenant_id])
+  @@index([user_id])
+  @@index([action])
+  @@index([module])
+  @@index([created_at])
+  @@index([target_type, target_id])
+}
+
+model BillingPlan {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  name        String   @unique
+  description String?
+  plan_type   String?  @default("BASIC")
+  monthly_fee Decimal  @default(0)
+  yearly_fee  Decimal? @default(0)
+  currency    String?  @default("USD")
+  limits      Json? // { max_users: 10, storage_mb: 500, max_projects: 3 }
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  tenantBillings TenantBilling[] // tenants subscribed to this plan
+}
+
+model TenantBilling {
+  id              String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id       String    @db.Uuid
+  billing_plan_id String    @db.Uuid
+  start_date      DateTime  @default(now())
+  end_date        DateTime?
+  renewal_date    DateTime?
+  status          String    @default("ACTIVE") // ACTIVE, EXPIRED, CANCELED
+  payment_status  String    @default("PAID") // PAID, PENDING, FAILED
+  payment_method  String? // card, paypal, manual, etc.
+  last_invoice_id String?
+  auto_renew      Boolean   @default(true)
+  usage_metrics   Json? // { used_storage_mb: 300, used_users: 5 }
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenant_id], references: [id])
+  billingPlan BillingPlan @relation(fields: [billing_plan_id], references: [id])
+  invoices    Invoice[] // optional link to payment history
+
+  @@unique([tenant_id, billing_plan_id])
+  @@index([tenant_id])
+  @@index([billing_plan_id])
+}
+
+model Invoice {
+  id                String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_billing_id String    @db.Uuid
+  amount            Decimal
+  currency          String?   @default("USD")
+  status            String    @default("PAID") // PAID, FAILED, REFUNDED
+  invoice_date      DateTime  @default(now())
+  due_date          DateTime?
+  paid_date         DateTime?
+  payment_ref       String? // transaction id, stripe id etc.
+  metadata          Json?
+  created_at        DateTime  @default(dbgenerated("now()")) @db.Timestamp(6)
+
+  tenantBilling TenantBilling @relation(fields: [tenant_billing_id], references: [id])
+}
+
+model Role {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id   String   @db.Uuid
+  name        String?  @db.VarChar(255)
+  description String?  @db.Text
+  created_at  DateTime @default(dbgenerated("now()")) @db.Timestamp(6)
+
+  tenant      Tenant           @relation(fields: [tenant_id], references: [id])
+  permissions RolePermission[]
+
+  @@index([tenant_id])
+  @@index([name])
+  @@index([created_at])
+}
+
+model RolePermission {
+  id             String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  role_id        String   @db.Uuid
+  permission_key String?  @db.VarChar(255)
+  created_at     DateTime @default(dbgenerated("now()")) @db.Timestamp(6)
+
+  role Role @relation(fields: [role_id], references: [id])
+
+  @@index([role_id])
+  @@index([permission_key])
+  @@index([created_at])
+}
+
+model Session {
+  id             String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id        String    @db.Uuid
+  tenant_id      String    @db.Uuid
+  device_id      String?   @db.VarChar(255) // Unique device identifier (web, mobile, etc.)
+  device_type    String?   @db.VarChar(100) // e.g., 'web', 'android', 'ios', 'desktop'
+  device_name    String?   @db.VarChar(255) // Human-readable device name
+  ip_address     String?   @db.VarChar(100)
+  user_agent     String?   @db.Text // Browser or app info
+  location       Json? // Optional: geo-info (country, city, lat, lon)
+  created_at     DateTime  @default(now())
+  last_active_at DateTime? @default(now()) // Updated on every API request
+  expires_at     DateTime? // Optional: session expiry
+  revoked_at     DateTime? // When the session was explicitly logged out
+  is_active      Boolean   @default(true)
+  refresh_token  String?   @db.Text // Hashed refresh token for session (if applicable)
+  token_version  Int       @default(0) // For refresh token rotation/invalidation
+  provider       String?   @db.VarChar(50) // e.g., 'local', 'google', 'github'
+  meta           Json? // Any additional session metadata
+
+  // Relations
+  user   Users        @relation(fields: [user_id], references: [user_id])
+  tenant Tenant       @relation(fields: [tenant_id], references: [id])
+  logs   SessionLog[]
+
+  @@index([user_id])
+  @@index([tenant_id])
+  @@index([is_active])
+  @@index([device_id])
+  @@index([created_at])
+  @@index([last_active_at])
+}
+
+model SessionLog {
+  id         String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  session_id String?  @db.Uuid
+  event      String?  @db.VarChar(100)
+  provider   String?  @db.VarChar(50)
+  ip_address String?  @db.VarChar(100)
+  user_agent String?  @db.Text
+  details    Json?
+  created_at DateTime @default(now())
+
+  session Session? @relation(fields: [session_id], references: [id])
+
+  @@index([session_id])
+  @@index([event])
+}
+
+// template model prisma
+
+model Tenant {
+  id                    String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  name                  String   @db.VarChar(255)
+  domain                String?  @unique @db.VarChar(255)
+  plan_type             String?  @db.VarChar(50)
+  status                String?  @db.VarChar(50)
+  default_admin_user_id String?  @unique @db.Uuid
+  storage_limit_mb      Int?     @default(0)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  users          Users[]
+  userOrgMap     UserOrgMap[]
+  roles          Role[]
+  sessions       Session[]
+  emailOutbox    EmailOutbox[]
+  auditLogs      AuditLogs[]
+  tenantPolicies TenantPolicy[]
+  tenantBillings TenantBilling[]
+  appConfigs     AppConfig[]
+
+  adminUser Users? @relation("TenantAdmin", fields: [default_admin_user_id], references: [user_id])
+}
+
+model TenantPolicy {
+  id               String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id        String   @db.Uuid
+  storage_limit_mb Int?     @default(1024)
+  allow_auto_sync  Boolean? @default(true)
+  max_sessions     Int      @default(5)
+  session_expiry   Int      @default(168) // in hours
+  idle_timeout     Int      @default(60)
+  enforce_2fa      Boolean  @default(false)
+  created_by       String?  @db.Uuid
+  updated_at       DateTime @updatedAt
+
+  tenant    Tenant @relation(fields: [tenant_id], references: [id])
+  createdBy Users? @relation(fields: [created_by], references: [user_id])
+}
+
+model Users {
+  user_id       String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id     String?   @db.Uuid
+  email         String    @unique @db.VarChar(255)
+  full_name     String?   @db.VarChar(255)
+  username      String?   @unique @db.VarChar(100)
+  password_hash String?
+  auth_provider String?   @db.VarChar(50)
+  role          String?   @default("user") @db.VarChar(50)
+  status        String?   @db.VarChar(50)
+  last_login_at DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  tenant      Tenant?       @relation(fields: [tenant_id], references: [id])
+  userOrgMap  UserOrgMap[]
+  sessions    Session[]
+  auditLogs   AuditLogs[]
+  emailOutbox EmailOutbox[]
+
+  tenantAdminOf Tenant[]       @relation("TenantAdmin")
+  TenantPolicy  TenantPolicy[]
+
+  @@index([email])
+  @@index([tenant_id])
+  @@index([role])
+}
+
+model UserOrgMap {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id     String   @db.Uuid
+  tenant_id   String   @db.Uuid
+  role_in_org String?  @db.VarChar(50)
+  created_at  DateTime @default(dbgenerated("now()")) @db.Timestamp(6)
+
+  // Relations
+  user   Users  @relation(fields: [user_id], references: [user_id])
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@unique([user_id, tenant_id])
+  @@index([tenant_id])
+  @@index([user_id])
+}
+
+model EmailOutbox {
+  id          String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id   String?   @db.Uuid // Optional link to tenant
+  user_id     String?   @db.Uuid // Optional link to user
+  to          String    @db.VarChar(255) // Recipient email address
+  cc          String?   @db.Text // CC recipients (comma-separated)
+  bcc         String?   @db.Text // BCC recipients (comma-separated)
+  subject     String    @db.VarChar(255)
+  body        String    @db.Text // HTML or text content
+  attachments Json? // Optional: list of file URLs or metadata
+  isSent      Boolean   @default(false)
+  sentAt      DateTime? @db.Timestamp(6)
+  scheduledAt DateTime? @db.Timestamp(6) // For scheduled emails
+  attempts    Int       @default(0) // Number of send attempts
+  lastAttempt DateTime? @db.Timestamp(6)
+  created_at  DateTime  @default(dbgenerated("now()")) @db.Timestamp(6)
+  updated_at  DateTime  @updatedAt @db.Timestamp(6)
+
+  tenant Tenant? @relation(fields: [tenant_id], references: [id])
+  user   Users?  @relation(fields: [user_id], references: [user_id])
+
+  @@index([isSent])
+  @@index([scheduledAt])
+  @@index([tenant_id])
+  @@index([user_id])
+}
+
+model Idempotency {
+  key        String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  namespace  String    @db.VarChar(255)
+  statusCode Int?
+  response   Json?
+  headers    Json?
+  createdAt  DateTime  @default(dbgenerated("now()")) @db.Timestamp(6)
+  updatedAt  DateTime? @db.Timestamp(6)
+
+  @@index([namespace])
+  @@index([statusCode])
+  @@index([createdAt])
+}
+
+model AppConfig {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  key         String   @unique @db.VarChar(255)
+  value       String   @db.Text
+  description String?  @db.Text
+  tenant_id   String?  @db.Uuid
+  created_at  DateTime @default(dbgenerated("now()")) @db.Timestamp(6)
+  updated_at  DateTime @updatedAt @db.Timestamp(6)
+
+  tenant Tenant? @relation(fields: [tenant_id], references: [id])
+}
