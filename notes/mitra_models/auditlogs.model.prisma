@@ -1,7 +1,7 @@
 model AuditLogs {
   id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
-  tenant_id   String?
-  user_id     String?
+  tenant_id   String   @db.Uuid
+  user_id     String   @db.Uuid
   actor_role  String? // "admin", "user", "system"
   module      String? // e.g. "chat", "knowledge_base", "user_mgmt"
   action      String // e.g. "CREATE", "UPDATE", "DELETE", "LOGIN"
@@ -15,7 +15,7 @@ model AuditLogs {
   created_at  DateTime @default(now())
 
   tenant Tenant? @relation(fields: [tenant_id], references: [id])
-  user   Users?  @relation(fields: [user_id], references: [user_id])
+  user   users?  @relation(fields: [user_id], references: [user_id])
 
   @@index([tenant_id])
   @@index([user_id])

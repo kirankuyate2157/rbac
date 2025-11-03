@@ -17,7 +17,7 @@ model EmailOutbox {
   updated_at  DateTime  @updatedAt @db.Timestamp(6)
 
   tenant Tenant? @relation(fields: [tenant_id], references: [id])
-  user   Users?  @relation(fields: [user_id], references: [user_id])
+  user   users?  @relation(fields: [user_id], references: [user_id])
 
   @@index([isSent])
   @@index([scheduledAt])

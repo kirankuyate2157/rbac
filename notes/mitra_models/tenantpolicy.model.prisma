@@ -7,9 +7,9 @@ model TenantPolicy {
   session_expiry   Int      @default(168) // in hours
   idle_timeout     Int      @default(60)
   enforce_2fa      Boolean  @default(false)
-  created_by       String?
+  created_by       String?  @db.Uuid
   updated_at       DateTime @updatedAt
 
   tenant    Tenant @relation(fields: [tenant_id], references: [id])
-  createdBy Users? @relation(fields: [created_by], references: [user_id])
+  createdBy users? @relation(fields: [created_by], references: [user_id])
 }

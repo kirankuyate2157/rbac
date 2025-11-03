@@ -1,23 +1,22 @@
 model Tenant {
-  id                    String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
-  name                  String   @db.VarChar(255)
-  domain                String?  @unique @db.VarChar(255)
-  plan_type             String?  @db.VarChar(50)
-  status                String?  @db.VarChar(50)
-  default_admin_user_id String?  @unique @db.Uuid
-  storage_limit_mb      Int?     @default(0)
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
-
-  users          users[]
-  userOrgMap     UserOrgMap[]
-  roles          Role[]
-  sessions       Session[]
-  emailOutbox    EmailOutbox[]
-  auditLogs      AuditLogs[]
-  tenantPolicies TenantPolicy[]
-  tenantBillings TenantBilling[]
-  appConfigs     AppConfig[]
-
-  adminUser users? @relation("TenantAdmin", fields: [default_admin_user_id], references: [user_id])
+  id                                        String          @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  name                                      String          @db.VarChar(255)
+  domain                                    String?         @unique @db.VarChar(255)
+  plan_type                                 String?         @db.VarChar(50)
+  status                                    String?         @db.VarChar(50)
+  default_admin_user_id                     String?         @unique @db.Uuid
+  storage_limit_mb                          Int?            @default(0)
+  created_at                                DateTime        @default(now())
+  updated_at                                DateTime
+  AppConfig                                 AppConfig[]
+  AuditLogs                                 AuditLogs[]
+  EmailOutbox                               EmailOutbox[]
+  Role                                      Role[]
+  Session                                   Session[]
+  users_Tenant_default_admin_user_idTousers users?          @relation("Tenant_default_admin_user_idTousers", fields: [default_admin_user_id], references: [user_id])
+  TenantBilling                             TenantBilling[]
+  TenantPolicy                              TenantPolicy[]
+  UserOrgMap                                UserOrgMap[]
+  users_users_tenant_idToTenant             users[]         @relation("users_tenant_idToTenant")
+  userRoles                                 UserRole[]
 }

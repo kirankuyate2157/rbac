@@ -1,38 +1,34 @@
 model users {
-  user_id       String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
-  tenant_id     String?  @db.Uuid
-  email         String   @unique @db.VarChar(255)
-  full_name     String?  @db.VarChar(255)
-  username      String?  @unique @db.VarChar(100)
-  password_hash String?
-  auth_provider String?  @db.VarChar(50)
-  role          String?  @default("user") @db.VarChar(50)
-  status        String?  @db.VarChar(50)
-  last_login_at DateTime?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
-
-  // existing relations
-  chat_history  chat_history[]
-  chat_sessions chat_sessions[]
+  user_id                                             String             @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  username                                            String?            @unique @db.VarChar(100)
+  email                                               String             @unique @db.VarChar(255)
+  password_hash                                       String?
+  role                                                String?            @default("user") @db.VarChar(50)
+  created_at                                          DateTime           @default(now())
+  updated_at                                          DateTime
+  auth_provider                                       String?            @db.VarChar(50)
+  full_name                                           String?            @db.VarChar(255)
+  last_login_at                                       DateTime?
+  status                                              String?            @db.VarChar(50)
+  tenant_id                                           String?            @db.Uuid
+  AuditLogs                                           AuditLogs[]
+  EmailOutbox                                         EmailOutbox[]
+  Session                                             Session[]
+  Tenant_Tenant_default_admin_user_idTousers          Tenant?            @relation("Tenant_default_admin_user_idTousers")
+  TenantPolicy                                        TenantPolicy[]
+  UserOrgMap                                          UserOrgMap[]
+  chat_history                                        chat_history[]
+  chat_sessions                                       chat_sessions[]
   knowledge_access_knowledge_access_granted_byTousers knowledge_access[] @relation("knowledge_access_granted_byTousers")
   knowledge_access_knowledge_access_user_idTousers    knowledge_access[] @relation("knowledge_access_user_idTousers")
-  knowledge_base  knowledge_base[]
-  knowledge_files knowledge_files[]
-  questions_log   questions_log[]
-  user_activity   user_activity[]
-
-  // new relations
-  tenant      Tenant?       @relation(fields: [tenant_id], references: [id])
-  userOrgMap  UserOrgMap[]
-  sessions    Session[]
-  auditLogs   AuditLogs[]
-  emailOutbox EmailOutbox[]
-
-  tenantAdminOf Tenant[]       @relation("TenantAdmin")
-  TenantPolicy  TenantPolicy[]
+  knowledge_base                                      knowledge_base[]
+  knowledge_files                                     knowledge_files[]
+  questions_log                                       questions_log[]
+  user_activity                                       user_activity[]
+  Tenant_users_tenant_idToTenant                      Tenant?            @relation("users_tenant_idToTenant", fields: [tenant_id], references: [id])
+  userRoles                                           UserRole[]
 
   @@index([email])
-  @@index([tenant_id])
   @@index([role])
+  @@index([tenant_id])
 }

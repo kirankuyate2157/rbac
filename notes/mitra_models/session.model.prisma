@@ -19,7 +19,7 @@ model Session {
   meta           Json? // Any additional session metadata
 
   // Relations
-  user   Users        @relation(fields: [user_id], references: [user_id])
+  user   users        @relation(fields: [user_id], references: [user_id])
   tenant Tenant       @relation(fields: [tenant_id], references: [id])
   logs   SessionLog[]
 

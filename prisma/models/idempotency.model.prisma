@@ -4,10 +4,10 @@ model Idempotency {
   statusCode Int?
   response   Json?
   headers    Json?
-  createdAt  DateTime  @default(dbgenerated("now()")) @db.Timestamp(6)
+  createdAt  DateTime  @default(now()) @db.Timestamp(6)
   updatedAt  DateTime? @db.Timestamp(6)
 
+  @@index([createdAt])
   @@index([namespace])
   @@index([statusCode])
-  @@index([createdAt])
 }

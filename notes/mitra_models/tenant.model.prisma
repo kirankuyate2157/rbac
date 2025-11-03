@@ -9,7 +9,7 @@ model Tenant {
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 
-  users          Users[]
+  users          users[]
   userOrgMap     UserOrgMap[]
   roles          Role[]
   sessions       Session[]
@@ -19,5 +19,5 @@ model Tenant {
   tenantBillings TenantBilling[]
   appConfigs     AppConfig[]
 
-  adminUser Users? @relation("TenantAdmin", fields: [default_admin_user_id], references: [user_id])
+  adminUser users? @relation("TenantAdmin", fields: [default_admin_user_id], references: [user_id])
 }

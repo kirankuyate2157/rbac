@@ -1,26 +1,25 @@
 model AuditLogs {
   id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
-  tenant_id   String   @db.Uuid
+  tenant_id   String?   @db.Uuid
   user_id     String   @db.Uuid
-  actor_role  String? // "admin", "user", "system"
-  module      String? // e.g. "chat", "knowledge_base", "user_mgmt"
-  action      String // e.g. "CREATE", "UPDATE", "DELETE", "LOGIN"
-  target_type String? // e.g. "Message", "Article", "User"
-  target_id   String? // ID of the target entity
-  status      String? // e.g. "SUCCESS", "FAILED"
+  actor_role  String?
+  module      String?
+  action      String
+  target_type String?
+  target_id   String?
+  status      String?
   ip_address  String?  @db.VarChar(100)
-  user_agent  String?  @db.Text
-  description String? // short summary
-  metadata    Json? // flexible extra info (old/new values, etc.)
+  user_agent  String?
+  description String?
+  metadata    Json?
   created_at  DateTime @default(now())
+  Tenant      Tenant?   @relation(fields: [tenant_id], references: [id])
+  users       users    @relation(fields: [user_id], references: [user_id])
 
-  tenant Tenant? @relation(fields: [tenant_id], references: [id])
-  user   users?  @relation(fields: [user_id], references: [user_id])
-
+  @@index([action])
+  @@index([created_at])
+  @@index([module])
+  @@index([target_type, target_id])
   @@index([tenant_id])
   @@index([user_id])
-  @@index([action])
-  @@index([module])
-  @@index([created_at])
-  @@index([target_type, target_id])
 }

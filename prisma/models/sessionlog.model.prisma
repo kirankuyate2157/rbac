@@ -4,12 +4,11 @@ model SessionLog {
   event      String?  @db.VarChar(100)
   provider   String?  @db.VarChar(50)
   ip_address String?  @db.VarChar(100)
-  user_agent String?  @db.Text
+  user_agent String?
   details    Json?
   created_at DateTime @default(now())
+  Session    Session? @relation(fields: [session_id], references: [id])
 
-  session Session? @relation(fields: [session_id], references: [id])
-
-  @@index([session_id])
   @@index([event])
+  @@index([session_id])
 }

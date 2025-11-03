@@ -1,7 +1,7 @@
 model TenantBilling {
   id              String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
-  tenant_id       String
-  billing_plan_id String
+  tenant_id       String    @db.Uuid
+  billing_plan_id String    @db.Uuid
   start_date      DateTime  @default(now())
   end_date        DateTime?
   renewal_date    DateTime?

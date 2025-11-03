@@ -1,0 +1,14 @@
+model PermissionMaster {
+  id             String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  permission_key String   @unique @db.VarChar(255) // e.g., "user:view", "tenant:create"
+  module         String?  @db.VarChar(100) // optional grouping module like "user"
+  description    String?  @db.Text
+  created_at     DateTime @default(dbgenerated("now()")) @db.Timestamp(6)
+  updated_at     DateTime @updatedAt
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@index([module])
+  @@index([permission_key])
+}

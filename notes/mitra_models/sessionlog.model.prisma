@@ -1,6 +1,6 @@
 model SessionLog {
   id         String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
-  session_id String?
+  session_id String?  @db.Uuid
   event      String?  @db.VarChar(100)
   provider   String?  @db.VarChar(50)
   ip_address String?  @db.VarChar(100)

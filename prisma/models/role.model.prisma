@@ -1,14 +1,16 @@
 model Role {
   id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
-  tenant_id   String   @db.Uuid
-  name        String?  @db.VarChar(255)
+  tenant_id   String?  @db.Uuid // null => Global role (e.g., Super Admin)
+  name        String   @db.VarChar(100)
   description String?  @db.Text
   created_at  DateTime @default(dbgenerated("now()")) @db.Timestamp(6)
+  updated_at  DateTime @updatedAt
 
-  tenant      Tenant           @relation(fields: [tenant_id], references: [id])
-  permissions RolePermission[]
+  // Relations
+  tenant          Tenant?          @relation(fields: [tenant_id], references: [id])
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
 
+  @@unique([tenant_id, name])
   @@index([tenant_id])
-  @@index([name])
-  @@index([created_at])
 }

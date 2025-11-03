@@ -1,24 +1,23 @@
 model TenantBilling {
-  id              String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
-  tenant_id       String    @db.Uuid
-  billing_plan_id String    @db.Uuid
-  start_date      DateTime  @default(now())
+  id              String      @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id       String      @db.Uuid
+  billing_plan_id String      @db.Uuid
+  start_date      DateTime    @default(now())
   end_date        DateTime?
   renewal_date    DateTime?
-  status          String    @default("ACTIVE") // ACTIVE, EXPIRED, CANCELED
-  payment_status  String    @default("PAID") // PAID, PENDING, FAILED
-  payment_method  String? // card, paypal, manual, etc.
+  status          String      @default("ACTIVE")
+  payment_status  String      @default("PAID")
+  payment_method  String?
   last_invoice_id String?
-  auto_renew      Boolean   @default(true)
-  usage_metrics   Json? // { used_storage_mb: 300, used_users: 5 }
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
-
-  tenant      Tenant      @relation(fields: [tenant_id], references: [id])
-  billingPlan BillingPlan @relation(fields: [billing_plan_id], references: [id])
-  invoices    Invoice[] // optional link to payment history
+  auto_renew      Boolean     @default(true)
+  usage_metrics   Json?
+  created_at      DateTime    @default(now())
+  updated_at      DateTime
+  Invoice         Invoice[]
+  BillingPlan     BillingPlan @relation(fields: [billing_plan_id], references: [id])
+  Tenant          Tenant      @relation(fields: [tenant_id], references: [id])
 
   @@unique([tenant_id, billing_plan_id])
-  @@index([tenant_id])
   @@index([billing_plan_id])
+  @@index([tenant_id])
 }
