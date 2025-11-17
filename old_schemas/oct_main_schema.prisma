@@ -1,0 +1,510 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AppConfig {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  key         String   @unique @db.VarChar(255)
+  value       String
+  description String?
+  tenant_id   String?  @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @db.Timestamp(6)
+  Tenant      Tenant?  @relation(fields: [tenant_id], references: [id])
+}
+
+model AuditLogs {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id   String?   @db.Uuid
+  user_id     String   @db.Uuid
+  actor_role  String?
+  module      String?
+  action      String
+  target_type String?
+  target_id   String?
+  status      String?
+  ip_address  String?  @db.VarChar(100)
+  user_agent  String?
+  description String?
+  metadata    Json?
+  created_at  DateTime @default(now())
+  Tenant      Tenant?   @relation(fields: [tenant_id], references: [id])
+  users       users    @relation(fields: [user_id], references: [user_id])
+
+  @@index([action])
+  @@index([created_at])
+  @@index([module])
+  @@index([target_type, target_id])
+  @@index([tenant_id])
+  @@index([user_id])
+}
+
+model BillingPlan {
+  id            String          @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  name          String          @unique
+  description   String?
+  plan_type     String?         @default("BASIC")
+  monthly_fee   Decimal         @default(0)
+  yearly_fee    Decimal?        @default(0)
+  currency      String?         @default("USD")
+  limits        Json?
+  is_active     Boolean         @default(true)
+  created_at    DateTime        @default(now())
+  updated_at    DateTime
+  TenantBilling TenantBilling[]
+}
+
+model EmailOutbox {
+  id          String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id   String?   @db.Uuid
+  user_id     String?   @db.Uuid
+  to          String    @db.VarChar(255)
+  cc          String?
+  bcc         String?
+  subject     String    @db.VarChar(255)
+  body        String
+  attachments Json?
+  isSent      Boolean   @default(false)
+  sentAt      DateTime? @db.Timestamp(6)
+  scheduledAt DateTime? @db.Timestamp(6)
+  attempts    Int       @default(0)
+  lastAttempt DateTime? @db.Timestamp(6)
+  created_at  DateTime  @default(now()) @db.Timestamp(6)
+  updated_at  DateTime  @db.Timestamp(6)
+  Tenant      Tenant?   @relation(fields: [tenant_id], references: [id])
+  users       users?    @relation(fields: [user_id], references: [user_id])
+
+  @@index([isSent])
+  @@index([scheduledAt])
+  @@index([tenant_id])
+  @@index([user_id])
+}
+
+model Idempotency {
+  key        String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  namespace  String    @db.VarChar(255)
+  statusCode Int?
+  response   Json?
+  headers    Json?
+  createdAt  DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt  DateTime? @db.Timestamp(6)
+
+  @@index([createdAt])
+  @@index([namespace])
+  @@index([statusCode])
+}
+
+model Invoice {
+  id                String        @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_billing_id String        @db.Uuid
+  amount            Decimal
+  currency          String?       @default("USD")
+  status            String        @default("PAID")
+  invoice_date      DateTime      @default(now())
+  due_date          DateTime?
+  paid_date         DateTime?
+  payment_ref       String?
+  metadata          Json?
+  created_at        DateTime      @default(now()) @db.Timestamp(6)
+  TenantBilling     TenantBilling @relation(fields: [tenant_billing_id], references: [id])
+}
+
+model Role {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id   String?  @db.Uuid // null => Global role (e.g., Super Admin)
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  created_at  DateTime @default(dbgenerated("now()")) @db.Timestamp(6)
+  updated_at  DateTime @updatedAt
+  is_system   Boolean  @default(false)
+
+  // Relations
+  tenant          Tenant?          @relation(fields: [tenant_id], references: [id])
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@unique([tenant_id, name])
+  @@index([tenant_id])
+}
+
+
+model PermissionMaster {
+  id             String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  permission_key String   @unique @db.VarChar(255) // e.g., "user:view", "tenant:create"
+  module         String?  @db.VarChar(100) // optional grouping module like "user"
+  description    String?  @db.Text
+  scope          String?  @default("tenant")
+  created_at     DateTime @default(dbgenerated("now()")) @db.Timestamp(6)
+  updated_at     DateTime @updatedAt
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@index([module])
+  @@index([permission_key])
+}
+
+model RolePermission {
+  id            String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  role_id       String   @db.Uuid
+  permission_id String   @db.Uuid
+  created_at    DateTime @default(dbgenerated("now()")) @db.Timestamp(6)
+
+  // Relations
+  role       Role             @relation(fields: [role_id], references: [id])
+  permission PermissionMaster @relation(fields: [permission_id], references: [id])
+
+  @@unique([role_id, permission_id])
+  @@index([role_id])
+  @@index([permission_id])
+}
+
+model UserRole {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id     String   @db.Uuid
+  role_id     String   @db.Uuid
+  tenant_id   String?  @db.Uuid // null => global role
+  assigned_by String?  @db.Uuid
+  created_at  DateTime @default(dbgenerated("now()"))
+
+  user   users   @relation(fields: [user_id], references: [user_id])
+  role   Role    @relation(fields: [role_id], references: [id])
+  tenant Tenant? @relation(fields: [tenant_id], references: [id])
+
+  @@unique([user_id, role_id, tenant_id])
+}
+
+model Session {
+  id             String       @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id        String       @db.Uuid
+  tenant_id      String?       @db.Uuid
+  device_id      String?      @db.VarChar(255)
+  device_type    String?      @db.VarChar(100)
+  device_name    String?      @db.VarChar(255)
+  ip_address     String?      @db.VarChar(100)
+  user_agent     String?
+  location       Json?
+  created_at     DateTime     @default(now())
+  last_active_at DateTime?    @default(now())
+  expires_at     DateTime?
+  revoked_at     DateTime?
+  is_active      Boolean      @default(true)
+  refresh_token  String?
+  token_version  Int          @default(0)
+  provider       String?      @db.VarChar(50)
+  meta           Json?
+  Tenant         Tenant?       @relation(fields: [tenant_id], references: [id])
+  users          users        @relation(fields: [user_id], references: [user_id])
+  SessionLog     SessionLog[]
+
+  @@index([created_at])
+  @@index([device_id])
+  @@index([is_active])
+  @@index([last_active_at])
+  @@index([tenant_id])
+  @@index([user_id])
+}
+
+
+model SessionLog {
+  id         String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  session_id String?  @db.Uuid
+  event      String?  @db.VarChar(100)
+  provider   String?  @db.VarChar(50)
+  ip_address String?  @db.VarChar(100)
+  user_agent String?
+  details    Json?
+  created_at DateTime @default(now())
+  Session    Session? @relation(fields: [session_id], references: [id])
+
+  @@index([event])
+  @@index([session_id])
+}
+
+model Tenant {
+  id                                        String          @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  name                                      String          @db.VarChar(255)
+  domain                                    String?         @unique @db.VarChar(255)
+  plan_type                                 String?         @db.VarChar(50)
+  status                                    String?         @db.VarChar(50)
+  default_admin_user_id                     String?         @unique @db.Uuid
+  storage_limit_mb                          Int?            @default(0)
+  created_at                                DateTime        @default(now())
+  updated_at                                DateTime
+  AppConfig                                 AppConfig[]
+  AuditLogs                                 AuditLogs[]
+  EmailOutbox                               EmailOutbox[]
+  Role                                      Role[]
+  Session                                   Session[]
+  users_Tenant_default_admin_user_idTousers users?          @relation("Tenant_default_admin_user_idTousers", fields: [default_admin_user_id], references: [user_id])
+  TenantBilling                             TenantBilling[]
+  TenantPolicy                              TenantPolicy[]
+  UserOrgMap                                UserOrgMap[]
+  users_users_tenant_idToTenant             users[]         @relation("users_tenant_idToTenant")
+  userRoles                                 UserRole[]
+}
+
+model TenantBilling {
+  id              String      @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id       String      @db.Uuid
+  billing_plan_id String      @db.Uuid
+  start_date      DateTime    @default(now())
+  end_date        DateTime?
+  renewal_date    DateTime?
+  status          String      @default("ACTIVE")
+  payment_status  String      @default("PAID")
+  payment_method  String?
+  last_invoice_id String?
+  auto_renew      Boolean     @default(true)
+  usage_metrics   Json?
+  created_at      DateTime    @default(now())
+  updated_at      DateTime
+  Invoice         Invoice[]
+  BillingPlan     BillingPlan @relation(fields: [billing_plan_id], references: [id])
+  Tenant          Tenant      @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id, billing_plan_id])
+  @@index([billing_plan_id])
+  @@index([tenant_id])
+}
+
+model TenantPolicy {
+  id               String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  tenant_id        String   @db.Uuid
+  storage_limit_mb Int?     @default(1024)
+  allow_auto_sync  Boolean? @default(true)
+  max_sessions     Int      @default(2)
+  max_users        Int      @default(10)
+  session_expiry   Int      @default(168)
+  idle_timeout     Int      @default(60)
+  enforce_2fa      Boolean  @default(false)
+  created_by       String?  @db.Uuid
+  updated_at       DateTime
+  users            users?   @relation(fields: [created_by], references: [user_id])
+  Tenant           Tenant   @relation(fields: [tenant_id], references: [id])
+}
+
+model UserOrgMap {
+  id          String   @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id     String   @db.Uuid
+  tenant_id   String   @db.Uuid
+  role_in_org String?  @db.VarChar(50)
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  Tenant      Tenant   @relation(fields: [tenant_id], references: [id])
+  users       users    @relation(fields: [user_id], references: [user_id])
+
+  @@unique([user_id, tenant_id])
+  @@index([tenant_id])
+  @@index([user_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model chat_history {
+  chat_id            String             @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  session_id         String?            @db.Uuid
+  user_id            String?            @db.Uuid
+  message_type       String             @db.VarChar(20)
+  message_text       String
+  response_to        String?            @db.Uuid
+  created_at         DateTime?          @default(now()) @db.Timestamp(6)
+  is_deactivate      Int?               @default(0)
+  response           Json?
+  chat_history       chat_history?      @relation("chat_historyTochat_history", fields: [response_to], references: [chat_id], onDelete: Cascade, onUpdate: NoAction)
+  other_chat_history chat_history[]     @relation("chat_historyTochat_history")
+  chat_sessions      chat_sessions?     @relation(fields: [session_id], references: [session_id], onDelete: Cascade, onUpdate: NoAction)
+  users              users?             @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+  chat_history_kbs   chat_history_kbs[]
+}
+
+model chat_history_kbs {
+  id             String          @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  chat_id        String?         @db.Uuid
+  kb_id          String?         @db.Uuid
+  chat_history   chat_history?   @relation(fields: [chat_id], references: [chat_id], onDelete: Cascade, onUpdate: NoAction)
+  knowledge_base knowledge_base? @relation(fields: [kb_id], references: [kb_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model chat_sessions {
+  session_id   String         @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id      String?        @db.Uuid
+  started_at   DateTime?      @default(now()) @db.Timestamp(6)
+  ended_at     DateTime?      @db.Timestamp(6)
+  kb_list      String[]       @default([])
+  name         String?        @db.VarChar(255)
+  chat_history chat_history[]
+  users        users?         @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model documents {
+  id        Int     @default(autoincrement())
+  vector_id String?
+  source    String?
+  page      Int?
+  text      String?
+  type      String?
+
+  @@ignore
+}
+
+model file_chunks {
+  chunk_id        String            @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  file_id         String?           @db.Uuid
+  chunk_index     Int
+  chunk_text      String?
+  created_at      DateTime?         @default(now()) @db.Timestamp(6)
+  page            Int?
+  type            String?           @db.VarChar
+  vector_id       String?
+  knowledge_files knowledge_files?  @relation(fields: [file_id], references: [file_id], onDelete: Cascade, onUpdate: NoAction)
+  question_chunks question_chunks[]
+}
+
+model knowledge_access {
+  access_id                                String          @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  kb_id                                    String?         @db.Uuid
+  user_id                                  String?         @db.Uuid
+  access_level                             String?         @default("read") @db.VarChar(50)
+  granted_at                               DateTime?       @default(now()) @db.Timestamp(6)
+  granted_by                               String?         @db.Uuid
+  is_selected                              Boolean?        @default(false)
+  users_knowledge_access_granted_byTousers users?          @relation("knowledge_access_granted_byTousers", fields: [granted_by], references: [user_id], onUpdate: NoAction)
+  knowledge_base                           knowledge_base? @relation(fields: [kb_id], references: [kb_id], onDelete: Cascade, onUpdate: NoAction)
+  users_knowledge_access_user_idTousers    users?          @relation("knowledge_access_user_idTousers", fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model knowledge_base {
+  kb_id            String             @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  kb_name          String             @unique @db.VarChar(255)
+  description      String?
+  created_by       String?            @db.Uuid
+  created_at       DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?          @default(now()) @db.Timestamp(6)
+  chat_history_kbs chat_history_kbs[]
+  knowledge_access knowledge_access[]
+  users            users?             @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  knowledge_files  knowledge_files[]
+  questions_log    questions_log[]
+}
+
+model knowledge_files {
+  file_id          String          @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  kb_id            String?         @db.Uuid
+  file_name        String          @db.VarChar(255)
+  file_path        String
+  file_type        String?         @db.VarChar(50)
+  parsing_type     String?         @db.VarChar(50)
+  is_selected      Boolean?        @default(false)
+  is_embedded      Boolean?        @default(false)
+  num_chunks       Int?            @default(0)
+  uploaded_by      String?         @db.Uuid
+  created_at       DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?       @default(now()) @db.Timestamp(6)
+  is_deactivate    Int             @default(0) @db.SmallInt
+  embedding_status String?         @db.VarChar(100)
+  file_description String?
+  file_alias_name  String?
+  file_chunks      file_chunks[]
+  knowledge_base   knowledge_base? @relation(fields: [kb_id], references: [kb_id], onDelete: Cascade, onUpdate: NoAction)
+  users            users?          @relation(fields: [uploaded_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model question_chunks {
+  qc_id            String         @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  question_id      String?        @db.Uuid
+  chunk_id         String?        @db.Uuid
+  rank             Int?
+  similarity_score Float?
+  created_at       DateTime?      @default(now()) @db.Timestamp(6)
+  file_chunks      file_chunks?   @relation(fields: [chunk_id], references: [chunk_id], onDelete: Cascade, onUpdate: NoAction)
+  questions_log    questions_log? @relation(fields: [question_id], references: [question_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model question_logs {
+  id       Int       @id @default(autoincrement())
+  question String
+  user_ip  String?   @db.VarChar(45)
+  location String?   @db.VarChar(255)
+  answer   String?
+  log_date DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model question_query_log {
+  id              String    @id @db.Uuid
+  question_id     String?   @db.Uuid
+  timestamp       DateTime? @default(now()) @db.Timestamp(6)
+  question        String
+  user_id         String?   @db.Uuid
+  session_id      String?   @db.Uuid
+  kb_ids          String[]  @db.Uuid
+  hits            Json?
+  cached          Boolean?
+  context         String?
+  message_context Json?
+  answer          String?
+  status_code     Int?
+}
+
+model questions_log {
+  question_id      String            @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id          String?           @db.Uuid
+  kb_id            String?           @db.Uuid
+  question_text    String
+  response_text    String?
+  response_time_ms Int?
+  status           String?           @default("completed") @db.VarChar(50)
+  created_at       DateTime?         @default(now()) @db.Timestamp(6)
+  question_chunks  question_chunks[]
+  knowledge_base   knowledge_base?   @relation(fields: [kb_id], references: [kb_id], onDelete: Cascade, onUpdate: NoAction)
+  users            users?            @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+}
+
+model user_activity {
+  activity_id String    @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  user_id     String?   @db.Uuid
+  action      String    @db.VarChar(100)
+  details     Json?
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  kb_id       String[]  @db.Uuid
+  users       users?    @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+}
+
+model users {
+  user_id                                             String             @id @default(dbgenerated("uuid_generate_v1()")) @db.Uuid
+  username                                            String?            @unique @db.VarChar(100)
+  email                                               String             @unique @db.VarChar(255)
+  password_hash                                       String?
+  role                                                String?            @default("user") @db.VarChar(50)
+  created_at                                          DateTime           @default(now())
+  updated_at                                          DateTime
+  auth_provider                                       String?            @db.VarChar(50)
+  full_name                                           String?            @db.VarChar(255)
+  last_login_at                                       DateTime?
+  status                                              String?            @db.VarChar(50)
+  tenant_id                                           String?            @db.Uuid
+  AuditLogs                                           AuditLogs[]
+  EmailOutbox                                         EmailOutbox[]
+  Session                                             Session[]
+  Tenant_Tenant_default_admin_user_idTousers          Tenant?            @relation("Tenant_default_admin_user_idTousers")
+  TenantPolicy                                        TenantPolicy[]
+  UserOrgMap                                          UserOrgMap[]
+  chat_history                                        chat_history[]
+  chat_sessions                                       chat_sessions[]
+  knowledge_access_knowledge_access_granted_byTousers knowledge_access[] @relation("knowledge_access_granted_byTousers")
+  knowledge_access_knowledge_access_user_idTousers    knowledge_access[] @relation("knowledge_access_user_idTousers")
+  knowledge_base                                      knowledge_base[]
+  knowledge_files                                     knowledge_files[]
+  questions_log                                       questions_log[]
+  user_activity                                       user_activity[]
+  Tenant_users_tenant_idToTenant                      Tenant?            @relation("users_tenant_idToTenant", fields: [tenant_id], references: [id])
+  userRoles                                           UserRole[]
+
+  @@index([email])
+  @@index([role])
+  @@index([tenant_id])
+}
