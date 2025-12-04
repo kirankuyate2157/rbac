@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model detection_aggregates {
+  id            Int       @id @default(autoincrement())
+  frame_index   Int
+  site_id       Int
+  feed_id       Int
+  total_objects Int?
+  class_counts  Json?
+  roi_entries   Json?
+  roi_exits     Json?
+  roi_counts    Json?
+  timestamp     DateTime? @db.Timestamptz(6)
+}
+
+model detections_halio {
+  id              Int      @id @default(autoincrement())
+  track_id        String?
+  cls             String?
+  confidence      Float?
+  bbox            Json?
+  video_time      Float?
+  zone            String?
+  zone_entry_time Float?
+  zone_exit_time  Float?
+  zone_times      Json?
+  frame_index     Int?
+  timestamp       DateTime @default(now()) @db.Timestamptz(6)
+  x_min           Float?
+  y_min           Float?
+  x_max           Float?
+  y_max           Float?
+  site_id         String?  @db.VarChar(50)
+  feed_id         String?  @db.VarChar(50)
+  total_objects   Int?
+  class_counts    Json?
+  roi_entries     Json?
+  roi_exits       Json?
+  roi_counts      Json?
+  object_count    Int?
+}
+
+model frame_results {
+  id                   Int       @id @default(autoincrement())
+  site_id              Int
+  feed_id              Int
+  frame_index          Int
+  ts                   Float?
+  timestamp_dt         DateTime? @db.Timestamp(6)
+  mode                 String?   @db.VarChar(50)
+  rois                 Json?
+  total_obj_count      Json?
+  total_obj_inside_roi Json?
+  time_condition       Boolean?  @default(false)
+  sups                 Json?
+  created_at           DateTime? @default(now()) @db.Timestamp(6)
+}
+
+/// This table has subclasses and requires additional setup for migrations. Visit https://pris.ly/d/table-inheritance for more info.
+model frames {
+  frame_id                 BigInt    @default(autoincrement())
+  feed_id                  BigInt?
+  ts                       DateTime  @db.Timestamptz(6)
+  fps                      Int?
+  frame_timestamp          DateTime? @db.Timestamptz(6)
+  frame_number             BigInt?
+  frame_processing_time_ms Float?
+  inference_time_ms        Float?
+
+  @@id([ts, frame_id])
+  @@index([ts(sort: Desc)])
+  @@index([feed_id, ts(sort: Desc)], map: "idx_frames_feedid_ts")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model frames1 {
+  frame_id                 BigInt    @default(autoincrement())
+  feed_id                  BigInt?
+  ts                       DateTime  @db.Timestamptz(6)
+  fps                      Int?
+  frame_timestamp          DateTime? @db.Timestamptz(6)
+  frame_number             BigInt?
+  frame_processing_time_ms Float?
+  inference_time_ms        Float?
+
+  @@ignore
+}
+
+model object_stats_daily {
+  stat_date      DateTime @db.Date
+  feed_id        Int
+  class_name     String
+  total_count    Int?
+  avg_confidence Decimal? @db.Decimal(5, 2)
+
+  @@id([stat_date, feed_id, class_name])
+}
+
+model objects_detected {
+  object_id        BigInt    @id @default(autoincrement())
+  frame_id         BigInt?
+  class_name       String
+  confidence       Decimal?  @db.Decimal(5, 2)
+  zone             String?
+  bbox_x           Float
+  bbox_y           Float
+  bbox_w           Float
+  bbox_h           Float
+  track_id         String?   @db.VarChar(150)
+  attributes       Json?
+  frame_number     BigInt?
+  time_sec         Decimal?  @db.Decimal(10, 3)
+  model_tag        String?
+  model_version    String?
+  inference_source String?
+  zone_times       Json?
+  zone_entry_time  DateTime? @db.Timestamptz(6)
+  zone_exit_time   DateTime? @db.Timestamptz(6)
+  track_history    Json?
+  zone_id          BigInt?
+  zone_description String?
+  timeline         String?
+  track_uid        String?   @db.Uuid
+
+  @@index([frame_id], map: "idx_od_frameid")
+  @@index([zone, class_name, track_id], map: "idx_od_zone_class_track")
+  @@index([zone_entry_time], map: "idx_od_zone_entry_time")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model objects_detected1 {
+  object_id        BigInt    @default(autoincrement())
+  frame_id         BigInt?
+  class_name       String
+  confidence       Decimal?  @db.Decimal(5, 2)
+  zone             String?
+  bbox_x           Float
+  bbox_y           Float
+  bbox_w           Float
+  bbox_h           Float
+  track_id         String?   @db.VarChar(150)
+  attributes       Json?
+  frame_number     BigInt?
+  time_sec         Decimal?  @db.Decimal(10, 3)
+  model_tag        String?
+  model_version    String?
+  inference_source String?
+  zone_times       Json?
+  zone_entry_time  DateTime? @db.Timestamptz(6)
+  zone_exit_time   DateTime? @db.Timestamptz(6)
+  track_history    Json?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model video_detections {
+  timestamp    DateTime  @db.Timestamptz(6)
+  stored_timed DateTime? @default(now()) @db.Timestamptz(6)
+  frame_id     String
+  feed_id      String
+  detections   Json
+
+  @@ignore
+}
