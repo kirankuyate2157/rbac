@@ -1,0 +1,513 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model None {
+  id                   BigInt    @id @default(autoincrement())
+  site_id              Int
+  feed_id              Int
+  frame_index          Int
+  ts                   Float?
+  timestamp_dt         DateTime? @db.DateTime(0)
+  mode                 String?   @default("frame") @db.VarChar(16)
+  rois                 Json?
+  total_obj_count      Json?
+  total_obj_inside_roi Json?
+  time_condition       Boolean?  @default(false)
+  sups                 Json?
+  created_at           DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model accounts {
+  id           Int            @id @default(autoincrement())
+  name         String         @db.VarChar(150)
+  plan         String?        @default("FREE") @db.VarChar(50)
+  created_at   DateTime?      @default(now()) @db.Timestamp(0)
+  updated_at   DateTime?      @default(now()) @db.Timestamp(0)
+  applications applications[]
+  main_site    main_site[]
+  users        users[]
+}
+
+model applications {
+  id          Int         @id @default(autoincrement())
+  name        String      @db.VarChar(255)
+  description String?     @db.Text
+  is_deployed Int?        @default(0)
+  created_at  DateTime?   @default(now()) @db.DateTime(0)
+  updated_at  DateTime?   @default(now()) @db.DateTime(0)
+  account_id  Int?
+  accounts    accounts?   @relation(fields: [account_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_account_id")
+  workflows   workflows[]
+
+  @@index([account_id], map: "fk_account_id")
+}
+
+model captured_frames {
+  id                  BigInt                        @id @default(autoincrement())
+  detection_log_id    BigInt?
+  site_id             Int?
+  feed_id             Int?
+  static_item_id      Int?
+  full_frame_url      String?                       @db.Text
+  crop_url            String?                       @db.Text
+  annotated_frame_url String?                       @db.Text
+  captured_at         DateTime                      @db.DateTime(0)
+  resolution          String?                       @db.VarChar(20)
+  format              String?                       @db.VarChar(20)
+  trigger_type        captured_frames_trigger_type? @default(auto)
+  retention_days      Int?                          @default(30)
+  meta                Json?
+  created_at          DateTime?                     @default(now()) @db.DateTime(0)
+  detection_log_uid   String?                       @db.VarChar(100)
+  detection_logs      detection_logs?               @relation(fields: [detection_log_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "captured_frames_ibfk_1")
+  sites               sites?                        @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "captured_frames_ibfk_2")
+  feeds               feeds?                        @relation(fields: [feed_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "captured_frames_ibfk_3")
+  static_items        static_items?                 @relation(fields: [static_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "captured_frames_ibfk_4")
+
+  @@index([detection_log_id], map: "detection_log_id")
+  @@index([feed_id], map: "feed_id")
+  @@index([site_id], map: "site_id")
+  @@index([static_item_id], map: "static_item_id")
+}
+
+model detection_logs {
+  id                  BigInt                           @id @default(autoincrement())
+  site_id             Int
+  feed_id             Int
+  static_item_id      Int?
+  dynamic_item_id     Int?
+  detected_class_path Json
+  confidence          Decimal                          @db.Decimal(5, 4)
+  detection_type      detection_logs_detection_type?   @default(presence)
+  model_tag           String?                          @db.VarChar(255)
+  model_version       String?                          @db.VarChar(50)
+  inference_source    detection_logs_inference_source? @default(edge)
+  inference_time_ms   Int?
+  frame_timestamp     DateTime                         @db.DateTime(0)
+  frame_meta          Json?
+  is_correct          Boolean?
+  feedback_note       String?                          @db.Text
+  created_at          DateTime?                        @default(now()) @db.DateTime(0)
+  uid                 String                           @db.VarChar(100)
+  captured_frames     captured_frames[]
+  sites               sites                            @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_logs_ibfk_1")
+  feeds               feeds                            @relation(fields: [feed_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_logs_ibfk_2")
+  static_items        static_items?                    @relation(fields: [static_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_logs_ibfk_3")
+  dynamic_items       dynamic_items?                   @relation(fields: [dynamic_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_logs_ibfk_4")
+
+  @@index([dynamic_item_id], map: "dynamic_item_id")
+  @@index([feed_id], map: "feed_id")
+  @@index([site_id], map: "site_id")
+  @@index([static_item_id], map: "static_item_id")
+}
+
+model detection_rules {
+  id                  Int                           @id @default(autoincrement())
+  site_id             Int
+  feed_id             Int
+  static_item_id      Int?
+  dynamic_class_id    Int?
+  name                String?                       @db.VarChar(255)
+  description         String?                       @db.Text
+  trigger_type        detection_rules_trigger_type? @default(entry)
+  count_threshold     Int?                          @default(1)
+  time_window_seconds Int?                          @default(60)
+  active_from         DateTime?                     @db.Time(0)
+  active_to           DateTime?                     @db.Time(0)
+  active_days         Json?
+  action_type         detection_rules_action_type?  @default(alert)
+  action_config       Json?
+  is_active           Boolean?                      @default(true)
+  created_at          DateTime?                     @default(now()) @db.DateTime(0)
+  sites               sites                         @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_rules_ibfk_1")
+  feeds               feeds                         @relation(fields: [feed_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_rules_ibfk_2")
+  static_items        static_items?                 @relation(fields: [static_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_rules_ibfk_3")
+  dynamic_classes     dynamic_classes?              @relation(fields: [dynamic_class_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_rules_ibfk_4")
+
+  @@index([dynamic_class_id], map: "dynamic_class_id")
+  @@index([feed_id], map: "feed_id")
+  @@index([site_id], map: "site_id")
+  @@index([static_item_id], map: "static_item_id")
+}
+
+model dynamic_classes {
+  id                    Int               @id @default(autoincrement())
+  parent_id             Int?
+  name                  String            @db.VarChar(255)
+  description           String?           @db.Text
+  model_tag             String?           @db.VarChar(255)
+  is_leaf               Boolean?          @default(true)
+  level                 Int?              @default(1)
+  metadata              Json?
+  created_at            DateTime?         @default(now()) @db.DateTime(0)
+  updated_at            DateTime?         @default(now()) @db.DateTime(0)
+  detection_rules       detection_rules[]
+  dynamic_classes       dynamic_classes?  @relation("dynamic_classesTodynamic_classes", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dynamic_classes_ibfk_1")
+  other_dynamic_classes dynamic_classes[] @relation("dynamic_classesTodynamic_classes")
+  dynamic_items         dynamic_items[]
+
+  @@unique([name, parent_id], map: "name")
+  @@index([parent_id], map: "parent_id")
+}
+
+model dynamic_group_items {
+  group_id        Int
+  dynamic_item_id Int
+  dynamic_groups  dynamic_groups @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "dynamic_group_items_ibfk_1")
+  dynamic_items   dynamic_items  @relation(fields: [dynamic_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "dynamic_group_items_ibfk_2")
+
+  @@id([group_id, dynamic_item_id])
+  @@index([dynamic_item_id], map: "dynamic_item_id")
+}
+
+model dynamic_groups {
+  id                  Int                   @id @default(autoincrement())
+  site_id             Int
+  name                String                @db.VarChar(255)
+  description         String?               @db.Text
+  created_at          DateTime?             @default(now()) @db.DateTime(0)
+  updated_at          DateTime?             @default(now()) @db.DateTime(0)
+  dynamic_group_items dynamic_group_items[]
+  sites               sites                 @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dynamic_groups_ibfk_1")
+
+  @@unique([site_id, name], map: "site_id")
+}
+
+model dynamic_items {
+  id                  Int                   @id @default(autoincrement())
+  site_id             Int
+  feed_id             Int
+  class_id            Int
+  alias_name          String?               @db.VarChar(255)
+  description         String?               @db.Text
+  is_active           Boolean?              @default(true)
+  config              Json?
+  created_at          DateTime?             @default(now()) @db.DateTime(0)
+  updated_at          DateTime?             @default(now()) @db.DateTime(0)
+  detection_logs      detection_logs[]
+  dynamic_group_items dynamic_group_items[]
+  dynamic_classes     dynamic_classes       @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dynamic_items_ibfk_1")
+  sites               sites                 @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dynamic_items_ibfk_3")
+
+  @@index([class_id], map: "class_id")
+  @@index([site_id], map: "site_id")
+}
+
+model feeds {
+  id                Int                 @id @default(autoincrement())
+  site_id           Int?
+  name              String              @db.VarChar(255)
+  description       String?             @db.Text
+  type              feeds_type
+  original_width    Int?
+  original_height   Int?
+  stream_url        String?             @db.Text
+  video_file_path   String?             @db.Text
+  storage_type      feeds_storage_type? @default(local)
+  storage_path      String?             @db.Text
+  username          String?             @db.VarChar(100)
+  password          String?             @db.VarChar(100)
+  auth_token        String?             @db.Text
+  frame_rate        Int?                @default(25)
+  format            String?             @db.VarChar(50)
+  is_active         Boolean?            @default(true)
+  is_verified       Boolean?            @default(false)
+  is_muted          Boolean?            @default(false)
+  tags              Json?
+  metadata          Json?
+  created_at        DateTime?           @default(now()) @db.DateTime(0)
+  updated_at        DateTime?           @default(now()) @db.DateTime(0)
+  sample_frame_path String?             @db.Text
+  mode              feeds_mode          @default(detection)
+  ocr               Boolean?            @default(false)
+  tamper            Boolean?            @default(false)
+  is_running        Boolean?            @default(false)
+  encoding          String?             @db.VarChar(255)
+  captured_frames   captured_frames[]
+  detection_logs    detection_logs[]
+  detection_rules   detection_rules[]
+  sites             sites?              @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "feeds_ibfk_1")
+  static_items      static_items[]
+
+  @@index([site_id], map: "site_id")
+}
+
+model frame_results {
+  id                   BigInt    @id @default(autoincrement())
+  site_id              Int
+  feed_id              Int
+  frame_index          Int
+  ts                   Float?
+  timestamp_dt         DateTime? @db.DateTime(0)
+  mode                 String?   @default("frame") @db.VarChar(16)
+  rois                 Json?
+  total_obj_count      Json?
+  total_obj_inside_roi Json?
+  time_condition       Boolean?  @default(false)
+  sups                 Json?
+  created_at           DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model main_site {
+  id          Int       @id @default(autoincrement())
+  account_id  Int?
+  name        String    @db.VarChar(100)
+  location    String?   @db.Text
+  coordinates Json?
+  address_id  Int?
+  tag_id      Int?
+  notes       String?   @db.Text
+  is_active   Boolean?  @default(true)
+  created_at  DateTime? @default(now()) @db.DateTime(0)
+  updated_at  DateTime? @default(now()) @db.DateTime(0)
+  accounts    accounts? @relation(fields: [account_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_main_site_account")
+
+  @@index([account_id], map: "fk_main_site_account")
+}
+
+model module_access {
+  access_id        Int       @id @default(autoincrement())
+  user_id          Int
+  module_id        Int
+  access_given_by  BigInt    @db.UnsignedBigInt
+  granted_at       DateTime? @default(now()) @db.Timestamp(0)
+  grant_updated_at DateTime? @db.Timestamp(0)
+  revoked_at       DateTime? @db.Timestamp(0)
+  inactive         Boolean?  @default(false)
+}
+
+model modules {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  uid         String    @db.VarChar(36)
+  name        String    @db.VarChar(255)
+  description String?   @db.Text
+  created_at  DateTime? @default(now()) @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  deleted_at  DateTime? @db.Timestamp(0)
+}
+
+model otp_history {
+  id                Int       @id @default(autoincrement())
+  otp               Int       @db.UnsignedInt
+  created_timestamp DateTime? @default(now()) @db.Timestamp(0)
+  end_timestamp     DateTime? @db.Timestamp(0)
+  mobile_number     String?   @db.VarChar(13)
+  email             String?   @db.VarChar(50)
+}
+
+model sites {
+  id              Int               @id @default(autoincrement())
+  name            String?           @db.VarChar(255)
+  location        String?           @db.VarChar(255)
+  created_at      DateTime?         @default(now()) @db.DateTime(0)
+  updated_at      DateTime?         @default(now()) @db.DateTime(0)
+  main_site_id    Int?
+  captured_frames captured_frames[]
+  detection_logs  detection_logs[]
+  detection_rules detection_rules[]
+  dynamic_groups  dynamic_groups[]
+  dynamic_items   dynamic_items[]
+  feeds           feeds[]
+  static_items    static_items[]
+}
+
+model static_items {
+  id                        Int                      @id @default(autoincrement())
+  site_id                   Int
+  feed_id                   Int
+  name                      String                   @db.VarChar(255)
+  description               String?                  @db.Text
+  coordinates               Json
+  original_width            Int
+  original_height           Int
+  connect_to_static_item_id Int?
+  show_frame                Boolean?                 @default(true)
+  is_visible                Boolean?                 @default(true)
+  direction                 static_items_direction?  @default(bidirectional)
+  trigger_on                static_items_trigger_on? @default(both)
+  detection_zone_label      String?                  @db.VarChar(255)
+  detection_type            String?                  @db.VarChar(255)
+  sensitivity_level         String?                  @db.VarChar(50)
+  config                    Json?
+  created_at                DateTime?                @default(now()) @db.DateTime(0)
+  updated_at                DateTime?                @default(now()) @db.DateTime(0)
+  captured_frames           captured_frames[]
+  detection_logs            detection_logs[]
+  detection_rules           detection_rules[]
+  feeds                     feeds                    @relation(fields: [feed_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "static_items_ibfk_1")
+  sites                     sites                    @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "static_items_ibfk_2")
+  static_items              static_items?            @relation("static_itemsTostatic_items", fields: [connect_to_static_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "static_items_ibfk_3")
+  other_static_items        static_items[]           @relation("static_itemsTostatic_items")
+
+  @@unique([site_id, feed_id, name], map: "site_id")
+  @@index([connect_to_static_item_id], map: "connect_to_static_item_id")
+  @@index([feed_id], map: "feed_id")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model user_addresses {
+  user_id      Int?
+  room_no      String?   @db.Text
+  locality     String?   @db.VarChar(50)
+  area         String?   @db.VarChar(50)
+  latitude     Float?
+  longitude    Float?
+  pincode      Int?
+  type         String?   @default("HOME") @db.VarChar(10)
+  inactive     Int?      @default(0)
+  is_default   Int?      @default(0)
+  created_date DateTime? @default(now()) @db.Timestamp(0)
+  deleted_date DateTime? @db.Timestamp(0)
+  updated_date DateTime? @db.Timestamp(0)
+  uid          String?   @db.Char(36)
+
+  @@ignore
+}
+
+model users {
+  id           Int       @id @default(autoincrement())
+  uid          String?   @unique(map: "uid") @db.VarChar(36)
+  account_id   Int?
+  password     String?   @default("") @db.VarChar(100)
+  full_name    String    @default("") @db.VarChar(100)
+  mobile_no    String?   @default("") @db.VarChar(30)
+  email        String?   @db.VarChar(100)
+  type         String?   @default("CUST") @db.VarChar(10)
+  inactive     Boolean?  @default(false)
+  updated_date DateTime? @db.Timestamp(0)
+  created_date DateTime? @default(now()) @db.Timestamp(0)
+  deleted_date DateTime? @db.Timestamp(0)
+  gender       String?   @db.VarChar(15)
+  birth_date   DateTime? @db.Date
+  department   String?   @db.VarChar(50)
+  user_role    String?   @db.VarChar(50)
+  company_name String?   @db.VarChar(100)
+  accounts     accounts? @relation(fields: [account_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_users_account")
+
+  @@index([account_id], map: "fk_users_account")
+}
+
+model workflow_edges {
+  id          Int       @id @default(autoincrement())
+  workflow_id Int
+  edge_id     String    @db.VarChar(100)
+  source      String    @db.VarChar(100)
+  target      String    @db.VarChar(100)
+  data        Json?
+  created_at  DateTime? @default(now()) @db.DateTime(0)
+  updated_at  DateTime? @default(now()) @db.DateTime(0)
+  type        String?   @db.VarChar(255)
+  workflows   workflows @relation(fields: [workflow_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "workflow_edges_ibfk_1")
+
+  @@index([workflow_id], map: "workflow_id")
+}
+
+model workflow_nodes {
+  id          Int       @id @default(autoincrement())
+  workflow_id Int
+  node_id     String    @db.VarChar(100)
+  type        String    @db.VarChar(100)
+  position_x  Float     @db.Float
+  position_y  Float     @db.Float
+  data        Json?
+  created_at  DateTime? @default(now()) @db.DateTime(0)
+  updated_at  DateTime? @default(now()) @db.DateTime(0)
+  workflows   workflows @relation(fields: [workflow_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "workflow_nodes_ibfk_1")
+
+  @@index([workflow_id], map: "workflow_id")
+}
+
+model workflows {
+  id             Int              @id @default(autoincrement())
+  app_id         Int
+  name           String           @db.VarChar(255)
+  feed_id        Int?
+  is_primary     Int?             @default(1)
+  created_at     DateTime?        @default(now()) @db.DateTime(0)
+  updated_at     DateTime?        @default(now()) @db.DateTime(0)
+  description    String?          @db.Text
+  ocr            Boolean?         @default(false)
+  tamper         Boolean?         @default(false)
+  workflow_edges workflow_edges[]
+  workflow_nodes workflow_nodes[]
+  applications   applications     @relation(fields: [app_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "workflows_ibfk_1")
+
+  @@index([app_id], map: "app_id")
+}
+
+enum feeds_type {
+  upload
+  live
+}
+
+enum detection_logs_detection_type {
+  entry
+  exit
+  presence
+}
+
+enum detection_rules_trigger_type {
+  entry
+  exit
+  presence
+  count_above
+}
+
+enum feeds_storage_type {
+  local
+  s3
+  gcs
+}
+
+enum detection_logs_inference_source {
+  edge
+  cloud
+}
+
+enum captured_frames_trigger_type {
+  manual
+  alert
+  schedule
+  auto
+}
+
+enum static_items_direction {
+  in
+  out
+  bidirectional
+}
+
+enum static_items_trigger_on {
+  entry
+  exit
+  both
+}
+
+enum detection_rules_action_type {
+  alert
+  store_frame
+  none
+}
+
+enum feeds_mode {
+  detection
+  tracking
+  counting
+  pose_estimation
+  segmentation
+  classification
+  anomaly_detection
+  ocr
+  face_recognition
+  reid
+  action_recognition
+  event_detection
+  behavior_analysis
+  analytics
+}

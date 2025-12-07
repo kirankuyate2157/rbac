@@ -1,0 +1,9 @@
+model object_stats_daily {
+  stat_date      DateTime @db.Date
+  feed_id        Int
+  class_name     String
+  total_count    Int?
+  avg_confidence Decimal? @db.Decimal(5, 2)
+
+  @@id([stat_date, feed_id, class_name])
+}

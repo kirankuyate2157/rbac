@@ -1,0 +1,19 @@
+model dynamic_items {
+  id                  Int                   @id @default(autoincrement())
+  site_id             Int
+  feed_id             Int
+  class_id            Int
+  alias_name          String?               @db.VarChar(255)
+  description         String?               @db.Text
+  is_active           Boolean?              @default(true)
+  config              Json?
+  created_at          DateTime?             @default(now()) @db.DateTime(0)
+  updated_at          DateTime?             @default(now()) @db.DateTime(0)
+  detection_logs      detection_logs[]
+  dynamic_group_items dynamic_group_items[]
+  dynamic_classes     dynamic_classes       @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dynamic_items_ibfk_1")
+  sites               sites                 @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dynamic_items_ibfk_3")
+
+  @@index([class_id], map: "class_id")
+  @@index([site_id], map: "site_id")
+}

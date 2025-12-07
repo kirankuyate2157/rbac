@@ -1,0 +1,27 @@
+model captured_frames {
+  id                  BigInt                        @id @default(autoincrement())
+  detection_log_id    BigInt?
+  site_id             Int?
+  feed_id             Int?
+  static_item_id      Int?
+  full_frame_url      String?                       @db.Text
+  crop_url            String?                       @db.Text
+  annotated_frame_url String?                       @db.Text
+  captured_at         DateTime                      @db.DateTime(0)
+  resolution          String?                       @db.VarChar(20)
+  format              String?                       @db.VarChar(20)
+  trigger_type        captured_frames_trigger_type? @default(auto)
+  retention_days      Int?                          @default(30)
+  meta                Json?
+  created_at          DateTime?                     @default(now()) @db.DateTime(0)
+  detection_log_uid   String?                       @db.VarChar(100)
+  detection_logs      detection_logs?               @relation(fields: [detection_log_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "captured_frames_ibfk_1")
+  sites               sites?                        @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "captured_frames_ibfk_2")
+  feeds               feeds?                        @relation(fields: [feed_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "captured_frames_ibfk_3")
+  static_items        static_items?                 @relation(fields: [static_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "captured_frames_ibfk_4")
+
+  @@index([detection_log_id], map: "detection_log_id")
+  @@index([feed_id], map: "feed_id")
+  @@index([site_id], map: "site_id")
+  @@index([static_item_id], map: "static_item_id")
+}

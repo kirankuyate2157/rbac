@@ -1,0 +1,12 @@
+model detection_aggregates {
+  id            Int       @id @default(autoincrement())
+  frame_index   Int
+  site_id       Int
+  feed_id       Int
+  total_objects Int?
+  class_counts  Json?
+  roi_entries   Json?
+  roi_exits     Json?
+  roi_counts    Json?
+  timestamp     DateTime? @db.Timestamptz(6)
+}

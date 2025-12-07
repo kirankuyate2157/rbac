@@ -1,0 +1,30 @@
+model objects_detected {
+  object_id        BigInt    @id @default(autoincrement())
+  frame_id         BigInt?
+  class_name       String
+  confidence       Decimal?  @db.Decimal(5, 2)
+  zone             String?
+  bbox_x           Float
+  bbox_y           Float
+  bbox_w           Float
+  bbox_h           Float
+  track_id         String?   @db.VarChar(150)
+  attributes       Json?
+  frame_number     BigInt?
+  time_sec         Decimal?  @db.Decimal(10, 3)
+  model_tag        String?
+  model_version    String?
+  inference_source String?
+  zone_times       Json?
+  zone_entry_time  DateTime? @db.Timestamptz(6)
+  zone_exit_time   DateTime? @db.Timestamptz(6)
+  track_history    Json?
+  zone_id          BigInt?
+  zone_description String?
+  timeline         String?
+  track_uid        String?   @db.Uuid
+
+  @@index([frame_id], map: "idx_od_frameid")
+  @@index([zone, class_name, track_id], map: "idx_od_zone_class_track")
+  @@index([zone_entry_time], map: "idx_od_zone_entry_time")
+}

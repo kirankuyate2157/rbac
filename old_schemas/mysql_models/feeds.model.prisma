@@ -1,0 +1,38 @@
+model feeds {
+  id                Int                 @id @default(autoincrement())
+  site_id           Int?
+  name              String              @db.VarChar(255)
+  description       String?             @db.Text
+  type              feeds_type
+  original_width    Int?
+  original_height   Int?
+  stream_url        String?             @db.Text
+  video_file_path   String?             @db.Text
+  storage_type      feeds_storage_type? @default(local)
+  storage_path      String?             @db.Text
+  username          String?             @db.VarChar(100)
+  password          String?             @db.VarChar(100)
+  auth_token        String?             @db.Text
+  frame_rate        Int?                @default(25)
+  format            String?             @db.VarChar(50)
+  is_active         Boolean?            @default(true)
+  is_verified       Boolean?            @default(false)
+  is_muted          Boolean?            @default(false)
+  tags              Json?
+  metadata          Json?
+  created_at        DateTime?           @default(now()) @db.DateTime(0)
+  updated_at        DateTime?           @default(now()) @db.DateTime(0)
+  sample_frame_path String?             @db.Text
+  mode              feeds_mode          @default(detection)
+  ocr               Boolean?            @default(false)
+  tamper            Boolean?            @default(false)
+  is_running        Boolean?            @default(false)
+  encoding          String?             @db.VarChar(255)
+  captured_frames   captured_frames[]
+  detection_logs    detection_logs[]
+  detection_rules   detection_rules[]
+  sites             sites?              @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "feeds_ibfk_1")
+  static_items      static_items[]
+
+  @@index([site_id], map: "site_id")
+}

@@ -1,0 +1,5 @@
+enum feeds_storage_type {
+  local
+  s3
+  gcs
+}

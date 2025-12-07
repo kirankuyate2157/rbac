@@ -1,0 +1,4 @@
+enum feeds_type {
+  upload
+  live
+}

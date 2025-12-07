@@ -1,8 +1,0 @@
-model question_logs {
-  id       Int       @id @default(autoincrement())
-  question String
-  user_ip  String?   @db.VarChar(45)
-  location String?   @db.VarChar(255)
-  answer   String?
-  log_date DateTime? @default(now()) @db.Timestamp(6)
-}

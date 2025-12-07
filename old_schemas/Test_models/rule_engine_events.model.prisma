@@ -1,0 +1,18 @@
+model rule_engine_events {
+  timestamp      DateTime  @db.Timestamptz(6)
+  stored_timed   DateTime? @default(now()) @db.Timestamptz(6)
+  feed_id        String
+  frame_id       Int
+  active_objects Int?
+  zone           String?
+  track_id       Int?
+  object         String?
+  count          Int?
+  ocr_text       Json?
+  time_in_zone   Float?
+  time_in_frame  Float?
+  unassign_text  Json?
+  frame_hex      String?
+
+  @@ignore
+}

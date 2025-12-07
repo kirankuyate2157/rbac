@@ -1,0 +1,6 @@
+enum detection_rules_trigger_type {
+  entry
+  exit
+  presence
+  count_above
+}

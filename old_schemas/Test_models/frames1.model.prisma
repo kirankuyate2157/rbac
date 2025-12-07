@@ -1,0 +1,12 @@
+model frames1 {
+  frame_id                 BigInt    @default(autoincrement())
+  feed_id                  BigInt?
+  ts                       DateTime  @db.Timestamptz(6)
+  fps                      Int?
+  frame_timestamp          DateTime? @db.Timestamptz(6)
+  frame_number             BigInt?
+  frame_processing_time_ms Float?
+  inference_time_ms        Float?
+
+  @@ignore
+}

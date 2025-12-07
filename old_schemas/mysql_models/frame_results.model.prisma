@@ -1,0 +1,15 @@
+model frame_results {
+  id                   BigInt    @id @default(autoincrement())
+  site_id              Int
+  feed_id              Int
+  frame_index          Int
+  ts                   Float?
+  timestamp_dt         DateTime? @db.DateTime(0)
+  mode                 String?   @default("frame") @db.VarChar(16)
+  rois                 Json?
+  total_obj_count      Json?
+  total_obj_inside_roi Json?
+  time_condition       Boolean?  @default(false)
+  sups                 Json?
+  created_at           DateTime? @default(now()) @db.Timestamp(0)
+}

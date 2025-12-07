@@ -1,0 +1,10 @@
+model module_access {
+  access_id        Int       @id @default(autoincrement())
+  user_id          Int
+  module_id        Int
+  access_given_by  BigInt    @db.UnsignedBigInt
+  granted_at       DateTime? @default(now()) @db.Timestamp(0)
+  grant_updated_at DateTime? @db.Timestamp(0)
+  revoked_at       DateTime? @db.Timestamp(0)
+  inactive         Boolean?  @default(false)
+}

@@ -1,0 +1,6 @@
+enum captured_frames_trigger_type {
+  manual
+  alert
+  schedule
+  auto
+}

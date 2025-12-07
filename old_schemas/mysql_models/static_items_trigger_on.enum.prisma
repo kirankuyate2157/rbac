@@ -1,0 +1,5 @@
+enum static_items_trigger_on {
+  entry
+  exit
+  both
+}

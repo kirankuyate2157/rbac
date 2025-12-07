@@ -1,0 +1,11 @@
+model camera_tamper_events {
+  id              Int       @id @default(autoincrement())
+  stored_timed    DateTime? @default(now()) @db.Timestamptz(6)
+  timestamp       DateTime  @db.Timestamptz(6)
+  feed_id         String
+  similarity      Float?    @db.Real
+  brightness      Float?    @db.Real
+  tamper_detected Boolean?
+  status          String?
+  frame_hex       String?
+}

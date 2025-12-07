@@ -1,0 +1,4 @@
+enum detection_logs_inference_source {
+  edge
+  cloud
+}

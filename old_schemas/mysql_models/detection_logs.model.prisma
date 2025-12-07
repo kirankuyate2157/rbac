@@ -1,0 +1,30 @@
+model detection_logs {
+  id                  BigInt                           @id @default(autoincrement())
+  site_id             Int
+  feed_id             Int
+  static_item_id      Int?
+  dynamic_item_id     Int?
+  detected_class_path Json
+  confidence          Decimal                          @db.Decimal(5, 4)
+  detection_type      detection_logs_detection_type?   @default(presence)
+  model_tag           String?                          @db.VarChar(255)
+  model_version       String?                          @db.VarChar(50)
+  inference_source    detection_logs_inference_source? @default(edge)
+  inference_time_ms   Int?
+  frame_timestamp     DateTime                         @db.DateTime(0)
+  frame_meta          Json?
+  is_correct          Boolean?
+  feedback_note       String?                          @db.Text
+  created_at          DateTime?                        @default(now()) @db.DateTime(0)
+  uid                 String                           @db.VarChar(100)
+  captured_frames     captured_frames[]
+  sites               sites                            @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_logs_ibfk_1")
+  feeds               feeds                            @relation(fields: [feed_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_logs_ibfk_2")
+  static_items        static_items?                    @relation(fields: [static_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_logs_ibfk_3")
+  dynamic_items       dynamic_items?                   @relation(fields: [dynamic_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "detection_logs_ibfk_4")
+
+  @@index([dynamic_item_id], map: "dynamic_item_id")
+  @@index([feed_id], map: "feed_id")
+  @@index([site_id], map: "site_id")
+  @@index([static_item_id], map: "static_item_id")
+}

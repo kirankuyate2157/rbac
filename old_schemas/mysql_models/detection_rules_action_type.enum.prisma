@@ -1,0 +1,5 @@
+enum detection_rules_action_type {
+  alert
+  store_frame
+  none
+}

@@ -1,0 +1,12 @@
+model dynamic_groups {
+  id                  Int                   @id @default(autoincrement())
+  site_id             Int
+  name                String                @db.VarChar(255)
+  description         String?               @db.Text
+  created_at          DateTime?             @default(now()) @db.DateTime(0)
+  updated_at          DateTime?             @default(now()) @db.DateTime(0)
+  dynamic_group_items dynamic_group_items[]
+  sites               sites                 @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dynamic_groups_ibfk_1")
+
+  @@unique([site_id, name], map: "site_id")
+}

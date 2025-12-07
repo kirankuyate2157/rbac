@@ -1,0 +1,19 @@
+model dynamic_classes {
+  id                    Int               @id @default(autoincrement())
+  parent_id             Int?
+  name                  String            @db.VarChar(255)
+  description           String?           @db.Text
+  model_tag             String?           @db.VarChar(255)
+  is_leaf               Boolean?          @default(true)
+  level                 Int?              @default(1)
+  metadata              Json?
+  created_at            DateTime?         @default(now()) @db.DateTime(0)
+  updated_at            DateTime?         @default(now()) @db.DateTime(0)
+  detection_rules       detection_rules[]
+  dynamic_classes       dynamic_classes?  @relation("dynamic_classesTodynamic_classes", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dynamic_classes_ibfk_1")
+  other_dynamic_classes dynamic_classes[] @relation("dynamic_classesTodynamic_classes")
+  dynamic_items         dynamic_items[]
+
+  @@unique([name, parent_id], map: "name")
+  @@index([parent_id], map: "parent_id")
+}

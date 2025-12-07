@@ -1,0 +1,32 @@
+model static_items {
+  id                        Int                      @id @default(autoincrement())
+  site_id                   Int
+  feed_id                   Int
+  name                      String                   @db.VarChar(255)
+  description               String?                  @db.Text
+  coordinates               Json
+  original_width            Int
+  original_height           Int
+  connect_to_static_item_id Int?
+  show_frame                Boolean?                 @default(true)
+  is_visible                Boolean?                 @default(true)
+  direction                 static_items_direction?  @default(bidirectional)
+  trigger_on                static_items_trigger_on? @default(both)
+  detection_zone_label      String?                  @db.VarChar(255)
+  detection_type            String?                  @db.VarChar(255)
+  sensitivity_level         String?                  @db.VarChar(50)
+  config                    Json?
+  created_at                DateTime?                @default(now()) @db.DateTime(0)
+  updated_at                DateTime?                @default(now()) @db.DateTime(0)
+  captured_frames           captured_frames[]
+  detection_logs            detection_logs[]
+  detection_rules           detection_rules[]
+  feeds                     feeds                    @relation(fields: [feed_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "static_items_ibfk_1")
+  sites                     sites                    @relation(fields: [site_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "static_items_ibfk_2")
+  static_items              static_items?            @relation("static_itemsTostatic_items", fields: [connect_to_static_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "static_items_ibfk_3")
+  other_static_items        static_items[]           @relation("static_itemsTostatic_items")
+
+  @@unique([site_id, feed_id, name], map: "site_id")
+  @@index([connect_to_static_item_id], map: "connect_to_static_item_id")
+  @@index([feed_id], map: "feed_id")
+}

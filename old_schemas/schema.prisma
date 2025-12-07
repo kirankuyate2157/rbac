@@ -1,0 +1,923 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Failed_Notification_Logs {
+  id              Int       @id @default(autoincrement())
+  notification_id Int
+  reason          String    @db.Text
+  logged_at       DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model Group_Items {
+  id              Int       @id @default(autoincrement())
+  group_id        Int
+  reference_id    Int
+  reference_label String    @db.VarChar(100)
+  created_at      DateTime? @default(now()) @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+
+  @@index([group_id], map: "group_id")
+  @@index([reference_id, reference_label], map: "reference_id")
+}
+
+model Groups {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(255)
+  group_type  String?   @db.VarChar(100)
+  description String?   @db.Text
+  created_at  DateTime? @default(now()) @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+}
+
+model Notifications {
+  id            Int                     @id @default(autoincrement())
+  user_id       Int
+  type          Notifications_type
+  priority      Notifications_priority? @default(medium)
+  status        Notifications_status?   @default(pending)
+  content       String                  @db.Text
+  topic         String?                 @db.VarChar(255)
+  created_at    DateTime?               @default(now()) @db.Timestamp(0)
+  scheduled_for DateTime?               @db.Timestamp(0)
+  retry_count   Int?                    @default(0)
+}
+
+model Subscriptions {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  topic      String    @db.VarChar(255)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model banner {
+  banner_id         Int              @id @default(autoincrement())
+  banner_type       String?          @db.VarChar(20)
+  name              String?          @db.VarChar(200)
+  start_date        DateTime?        @db.Timestamp(0)
+  end_date          DateTime?        @db.Timestamp(0)
+  description       String?          @db.Text
+  inactive          Int?             @default(0)
+  mobile_url        String?          @db.VarChar(512)
+  created_timestamp DateTime?        @default(now()) @db.Timestamp(0)
+  updated_times     DateTime?        @db.Timestamp(0)
+  delete_timestamp  DateTime?        @db.Timestamp(0)
+  view_sequence     Int?
+  ref_id            String?          @db.VarChar(100)
+  ref_type          banner_ref_type? @default(CATEGORY)
+  reference_url     String?          @db.Text
+}
+
+model banner_type {
+  type_id           Int       @id @default(autoincrement())
+  type_name         String    @db.VarChar(255)
+  description       String?   @db.Text
+  created_timestamp DateTime? @default(now()) @db.Timestamp(0)
+  update_timestamp  DateTime? @db.Timestamp(0)
+  delete_timestamp  DateTime? @db.Timestamp(0)
+  inactive          Boolean?  @default(false)
+}
+
+model cart {
+  cart_id    String       @unique(map: "cart_id") @db.Char(36)
+  id         Int          @id @default(autoincrement())
+  user_id    String       @unique(map: "user_id") @db.VarChar(36)
+  created_at DateTime?    @default(now()) @db.Timestamp(0)
+  updated_at DateTime?    @default(now()) @db.Timestamp(0)
+  users      users        @relation(fields: [user_id], references: [uid], onDelete: Cascade, onUpdate: NoAction, map: "cart_ibfk_1")
+  cart_items cart_items[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cart_items {
+  cart_item_id String          @unique(map: "cart_item_id") @db.Char(36)
+  id           Int             @id @default(autoincrement())
+  cart_id      String          @db.Char(36)
+  item_id      Int
+  quantity     Int             @default(1)
+  added_at     DateTime?       @default(now()) @db.Timestamp(0)
+  type         cart_items_type @default(STOCK)
+  cart         cart            @relation(fields: [cart_id], references: [cart_id], onDelete: Cascade, onUpdate: NoAction, map: "cart_items_ibfk_1")
+
+  @@index([cart_id], map: "cart_id")
+  @@index([item_id], map: "item_id")
+}
+
+model categories {
+  category_id          Int             @id @default(autoincrement()) @db.UnsignedInt
+  category_name        String          @default("") @db.VarChar(200)
+  category_image       String?         @db.VarChar(200)
+  inactive             Boolean         @default(false)
+  created_timestamp    DateTime?       @default(now()) @db.Timestamp(0)
+  update_timestamp     DateTime?       @db.Timestamp(0)
+  delete_timestamp     DateTime?       @db.Timestamp(0)
+  parent_category_id   Int?
+  category_description String?         @db.VarChar(2000)
+  combo_details        combo_details[]
+
+  @@index([category_id], map: "idx_categories_category_id")
+  @@index([parent_category_id], map: "idx_categories_parent_category_id")
+}
+
+model category_sequence {
+  id                 Int       @id @default(autoincrement()) @db.UnsignedInt
+  category_id        Int       @unique(map: "category_id") @db.UnsignedInt
+  parent_category_id Int?
+  sequence           Int
+  created_at         DateTime? @default(now()) @db.Timestamp(0)
+  updated_at         DateTime? @default(now()) @db.Timestamp(0)
+
+  @@unique([parent_category_id, sequence], map: "uq_parent_sequence")
+}
+
+model cod_payments {
+  id                 Int                          @id @default(autoincrement()) @db.UnsignedInt
+  payment_id         String                       @unique(map: "payment_id") @db.Char(50)
+  order_id           String?                      @db.Char(36)
+  payment_method     cod_payments_payment_method? @default(cod)
+  amount             Decimal                      @db.Decimal(15, 2)
+  wallet_amount      Decimal?                     @default(0.00) @db.Decimal(15, 2)
+  cod_amount         Decimal?                     @default(0.00) @db.Decimal(15, 2)
+  transaction_id     String?                      @unique(map: "transaction_id") @db.Char(50)
+  payment_status     cod_payments_payment_status? @default(pending)
+  created_at         DateTime?                    @default(now()) @db.Timestamp(0)
+  updated_at         DateTime?                    @default(now()) @db.Timestamp(0)
+  notes              String?                      @db.Text
+  proof_of_payment   String?                      @db.Text
+  collecting_user_id String                       @db.Char(36)
+}
+
+model combo_details {
+  id                   Int              @id @default(autoincrement()) @db.UnsignedInt
+  name                 String           @db.VarChar(200)
+  description          String           @db.VarChar(2000)
+  category_id          Int              @db.UnsignedInt
+  cost                 Float            @db.Float
+  department           String           @default("GROCERY") @db.VarChar(100)
+  inactive             Int?             @default(0)
+  created_timestamp    DateTime?        @default(now()) @db.Timestamp(0)
+  updated_timestamp    DateTime?        @db.Timestamp(0)
+  deleted_timestamp    DateTime?        @db.Timestamp(0)
+  discount             Decimal?         @db.Decimal(5, 2)
+  allow_extra_discount Boolean?         @default(false)
+  categories           categories       @relation(fields: [category_id], references: [category_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_category_id")
+  section_layout       section_layout[]
+
+  @@index([category_id], map: "fk_category_id")
+  @@index([id], map: "idx_combo_details_id")
+}
+
+model combos {
+  id                Int          @id @default(autoincrement()) @db.UnsignedInt
+  combo_id          Int          @db.UnsignedInt
+  stock_id          Int
+  quantities        Int
+  inactive          Int          @default(0)
+  created_timestamp DateTime?    @default(now()) @db.Timestamp(0)
+  updated_timestamp DateTime?    @db.Timestamp(0)
+  deleted_timestamp DateTime?    @db.Timestamp(0)
+  stock_master      stock_master @relation(fields: [stock_id], references: [stock_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stock_id")
+
+  @@unique([combo_id, stock_id], map: "combo_id")
+  @@index([stock_id], map: "fk_stock_id")
+}
+
+model complaints {
+  uid               String?              @unique(map: "uid") @db.VarChar(36)
+  id                BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  order_id          String               @unique(map: "order_id") @db.Char(36)
+  status            complaints_status?   @default(PENDING)
+  details           String?              @db.Text
+  actions           String?              @db.Text
+  severity          complaints_severity? @default(LOW)
+  inactive          Int?                 @default(0) @db.TinyInt
+  created_timestamp DateTime?            @default(now()) @db.Timestamp(0)
+  updated_timestamp DateTime?            @default(now()) @db.Timestamp(0)
+  source            String?              @default("WEB") @db.VarChar(50)
+  user_id           String?              @db.Char(36)
+}
+
+model custom_unit {
+  id                  Int                       @id @default(autoincrement())
+  unit_category       custom_unit_unit_category
+  display_unit        Int?
+  display_quantity_id Int?
+  name                String?                   @db.VarChar(255)
+  sale_as_per_piece   Int?                      @default(1) @db.TinyInt
+  inactive            Int?                      @default(0) @db.TinyInt
+  created_at          DateTime?                 @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?                 @default(now()) @db.Timestamp(0)
+
+  @@unique([display_unit, display_quantity_id, name], map: "unique_display_unit_quantity_name")
+  @@index([display_unit], map: "idx_custom_unit_display_unit")
+  @@index([id], map: "idx_custom_unit_id")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model customer_addresses {
+  user_id      Int?
+  room_no      String?   @db.Text
+  locality     String?   @db.VarChar(50)
+  area         String?   @db.VarChar(50)
+  latitude     Float?
+  longitude    Float?
+  pincode      Int?
+  type         String?   @default("HOME") @db.VarChar(10)
+  inactive     Int?      @default(0)
+  is_default   Int?      @default(0)
+  created_date DateTime? @default(now()) @db.Timestamp(0)
+  deleted_date DateTime? @db.Timestamp(0)
+  updated_date DateTime? @db.Timestamp(0)
+  uid          String?   @db.Char(36)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model deleted_order_items {
+  id                    Int                                @default(0)
+  uid                   String?                            @default(dbgenerated("(uuid())")) @db.Char(36)
+  order_id              Int                                @default(0)
+  item_id               Int?
+  item_type             BigInt?
+  description           String?                            @db.Text
+  quantity              Float                              @default(0)
+  sent_quantity         Float                              @default(0)
+  cost                  Float                              @db.Float
+  sent_cost             Float                              @db.Float
+  discount_percent      Float                              @default(0)
+  customer_note         String?                            @db.Text
+  employee_note         String?                            @db.Text
+  created_date          DateTime?                          @default(now()) @db.Timestamp(0)
+  updated_date          DateTime?                          @db.Timestamp(0)
+  deleted_date          DateTime?                          @db.Timestamp(0)
+  fail_reason           String?                            @db.Text
+  added_date            DateTime?                          @db.Timestamp(0)
+  final_amount          Decimal?                           @default(0.00) @db.Decimal(10, 2)
+  tax_perc              String?                            @db.VarChar(200)
+  unit_category         deleted_order_items_unit_category?
+  unit_minimum_quantity Int?
+
+  @@ignore
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model deleted_orders {
+  id                          Int                            @id @default(autoincrement())
+  uid                         String?                        @default(dbgenerated("(uuid())")) @db.Char(36)
+  created_by                  Int                            @default(0)
+  created_for                 Int                            @default(0)
+  delivery_address            String                         @db.TinyText
+  delivery_pincode            Int?
+  delivery_contact            String?                        @db.VarChar(30)
+  delivery_email              String?                        @db.VarChar(120)
+  deliver_to                  String                         @db.TinyText
+  expected_delivery_date      DateTime?                      @db.Date
+  delivery_slot               String?                        @db.VarChar(100)
+  final_amount                Float                          @default(0)
+  final_tax                   String?                        @db.VarChar(100)
+  order_entry_type            String?                        @db.VarChar(50)
+  payment_status              Int                            @default(0)
+  department                  String                         @db.VarChar(100)
+  delivery_time               DateTime?                      @db.DateTime(0)
+  create_timestamp            DateTime?                      @db.DateTime(0)
+  created_date                DateTime?                      @default(now()) @db.Timestamp(0)
+  updated_date                DateTime?                      @db.Timestamp(0)
+  deleted_date                DateTime?                      @db.Timestamp(0)
+  status                      String                         @default("AWAITING") @db.VarChar(100)
+  delete_flag                 deleted_orders_delete_flag?    @default(TEMP_DELETE)
+  is_reopened                 Boolean?                       @default(false)
+  is_modified                 Boolean?                       @default(false)
+  note_1                      String?                        @db.Text
+  note_2                      String?                        @db.Text
+  note_3                      String?                        @db.Text
+  delivery_charges            Decimal?                       @db.Decimal(10, 2)
+  fail_reason                 String?                        @db.Text
+  occasion                    String?                        @db.VarChar(255)
+  occasion_members            Int?                           @default(0)
+  payment_id                  String?                        @db.VarChar(255)
+  payment_method              deleted_orders_payment_method? @default(COD)
+  estimated_delivery_time     Decimal?                       @db.Decimal(6, 2)
+  estimated_distance          Decimal?                       @db.Decimal(10, 2)
+  applied_discount_percentage Decimal?                       @db.Decimal(6, 2)
+  applied_discount            Decimal?                       @default(0.00) @db.Decimal(6, 2)
+  old_id                      Int?                           @db.UnsignedInt
+  pending_amount              Decimal                        @default(0.00) @db.Decimal(15, 2)
+  estimation_id               String?                        @db.VarChar(50)
+  is_refunded                 Boolean?                       @default(false)
+  payment_pending_id          String?                        @db.VarChar(255)
+  raz_order_id                String?                        @db.VarChar(100)
+  raz_pay_status              Int?                           @default(0) @db.TinyInt
+  priority_delivery           Boolean?                       @default(false)
+
+  @@index([created_by], map: "idx_deleted_orders_created_by")
+  @@index([created_for], map: "idx_deleted_orders_created_for")
+  @@index([uid], map: "idx_deleted_orders_uid")
+}
+
+model delivery_locations {
+  id                       BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  uid                      String               @default(dbgenerated("(uuid())")) @db.Char(36)
+  type                     String?              @db.VarChar(100)
+  name                     String               @db.VarChar(500)
+  note                     String?              @db.Text
+  address                  String?              @db.Text
+  pincode                  Int                  @db.UnsignedInt
+  latitude                 Decimal              @db.Decimal(10, 8)
+  longitude                Decimal              @db.Decimal(11, 8)
+  warehouse_id             BigInt?              @db.UnsignedBigInt
+  distance_km              Decimal?             @db.Decimal(10, 3)
+  charges                  Decimal?             @db.Decimal(10, 2)
+  inactive                 Boolean?             @default(false)
+  created_date             DateTime?            @default(now()) @db.Timestamp(0)
+  updated_date             DateTime?            @default(now()) @db.Timestamp(0)
+  deleted_date             DateTime?            @db.Timestamp(0)
+  delivery_locations       delivery_locations?  @relation("delivery_locationsTodelivery_locations", fields: [warehouse_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_warehouse_id")
+  other_delivery_locations delivery_locations[] @relation("delivery_locationsTodelivery_locations")
+
+  @@index([warehouse_id], map: "fk_warehouse_id")
+}
+
+model dimensions {
+  id           Int            @id @default(autoincrement()) @db.UnsignedInt
+  name         String         @db.VarChar(200)
+  description  String?        @db.VarChar(2000)
+  type         String?        @db.VarChar(1000)
+  inactive     Int?
+  created_date DateTime?      @default(now()) @db.Timestamp(0)
+  updated_date DateTime?      @db.Timestamp(0)
+  deleted_date DateTime?      @db.Timestamp(0)
+  stock_master stock_master[]
+
+  @@index([id], map: "idx_dimensions_id")
+}
+
+model display_qty {
+  id       Int  @id @default(autoincrement())
+  qty_list Int?
+}
+
+model general_settings {
+  id          Int                          @id @default(autoincrement())
+  uuid        String                       @unique(map: "uuid") @default(dbgenerated("(uuid())")) @db.Char(36)
+  key_name    String                       @unique(map: "key_name") @db.VarChar(255)
+  value       String                       @db.Text
+  value_type  general_settings_value_type? @default(string)
+  description String?                      @db.VarChar(255)
+  created_at  DateTime?                    @default(now()) @db.Timestamp(0)
+  updated_at  DateTime?                    @default(now()) @db.Timestamp(0)
+}
+
+model logs {
+  id          Int      @id @default(autoincrement())
+  timestamp   DateTime @default(now()) @db.DateTime(0)
+  log_level   String   @db.VarChar(50)
+  source      String?  @db.VarChar(100)
+  message     String   @db.Text
+  stack_trace String?  @db.Text
+  user_id     String?  @db.VarChar(200)
+  route       String?  @db.VarChar(255)
+  server_name String?  @db.VarChar(255)
+  ip_address  String?  @db.VarChar(45)
+  metadata    Json?
+
+  @@index([log_level], map: "log_level")
+  @@index([timestamp], map: "timestamp")
+}
+
+model measurement_units {
+  id         Int       @id @default(autoincrement())
+  unit_id    Int
+  measure    String    @db.VarChar(50)
+  inactive   Int?      @default(0) @db.TinyInt
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+
+  @@unique([measure, unit_id], map: "unique_measure_unit")
+  @@index([id], map: "idx_measurement_units_id")
+}
+
+model measurement_units_old {
+  abbreviation String  @db.VarChar(20)
+  name         String  @db.VarChar(40)
+  display_qty  Int
+  inactive     Boolean @default(false)
+  id           Int     @id @default(autoincrement()) @db.UnsignedInt
+}
+
+model module_access {
+  access_id        Int       @id @default(autoincrement())
+  user_id          Int
+  module_id        Int
+  access_given_by  BigInt    @db.UnsignedBigInt
+  granted_at       DateTime? @default(now()) @db.Timestamp(0)
+  grant_updated_at DateTime? @db.Timestamp(0)
+  revoked_at       DateTime? @db.Timestamp(0)
+  inactive         Boolean?  @default(false)
+}
+
+model modules {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  uid         String    @db.VarChar(36)
+  name        String    @db.VarChar(255)
+  description String?   @db.Text
+  created_at  DateTime? @default(now()) @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  deleted_at  DateTime? @db.Timestamp(0)
+}
+
+model notification_tokens {
+  id         Int       @id @default(autoincrement()) @db.UnsignedInt
+  user_id    Int       @db.UnsignedInt
+  token      String    @db.VarChar(256)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  inactive   Boolean   @default(false)
+
+  @@unique([token, user_id], map: "notification_tokens_unique")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model operations_log {
+  order_uid        String    @db.VarChar(36)
+  type             String    @db.VarChar(20)
+  user_uid         String    @db.VarChar(36)
+  start_timestamp  DateTime? @db.Timestamp(0)
+  end_timestamp    DateTime? @db.Timestamp(0)
+  proof_image      String?   @db.VarChar(45)
+  create_timestamp DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model order_details {
+  id                                     Int                           @id @default(autoincrement())
+  uid                                    String?                       @default(dbgenerated("(uuid())")) @db.Char(36)
+  created_by                             Int                           @default(0)
+  created_for                            Int                           @default(0)
+  delivery_address                       String                        @db.TinyText
+  delivery_pincode                       Int?
+  delivery_contact                       String?                       @db.VarChar(30)
+  delivery_email                         String?                       @db.VarChar(120)
+  deliver_to                             String                        @db.TinyText
+  expected_delivery_date                 DateTime?                     @db.Date
+  delivery_slot                          String?                       @db.VarChar(100)
+  final_amount                           Float                         @default(0)
+  final_tax                              String?                       @db.VarChar(100)
+  order_entry_type                       String?                       @db.VarChar(50)
+  payment_status                         Int                           @default(0)
+  department                             String                        @db.VarChar(100)
+  delivery_time                          DateTime?                     @db.DateTime(0)
+  create_timestamp                       DateTime?                     @db.DateTime(0)
+  created_date                           DateTime?                     @default(now()) @db.Timestamp(0)
+  updated_date                           DateTime?                     @db.Timestamp(0)
+  deleted_date                           DateTime?                     @db.Timestamp(0)
+  status                                 String                        @default("AWAITING") @db.VarChar(100)
+  is_reopened                            Boolean?                      @default(false)
+  is_modified                            Boolean?                      @default(false)
+  note_3                                 String?                       @db.Text
+  note_2                                 String?                       @db.Text
+  note_1                                 String?                       @db.Text
+  delivery_charges                       Decimal?                      @db.Decimal(10, 2)
+  fail_reason                            String?                       @db.Text
+  occasion                               String?                       @db.VarChar(255)
+  occasion_members                       Int?                          @default(0)
+  payment_id                             String?                       @db.VarChar(255)
+  payment_method                         order_details_payment_method? @default(COD)
+  estimated_delivery_time                Decimal?                      @db.Decimal(6, 2)
+  estimated_distance                     Decimal?                      @db.Decimal(10, 2)
+  applied_discount_percentage            Decimal?                      @db.Decimal(6, 2)
+  applied_discount                       Decimal?                      @default(0.00) @db.Decimal(6, 2)
+  old_id                                 Int?                          @db.UnsignedInt
+  pending_amount                         Decimal                       @default(0.00) @db.Decimal(15, 2)
+  estimation_id                          String?                       @db.VarChar(50)
+  is_refunded                            Boolean?                      @default(false)
+  payment_pending_id                     String?                       @db.VarChar(255)
+  raz_order_id                           String?                       @db.VarChar(100)
+  raz_pay_status                         Int?                          @default(0) @db.TinyInt
+  priority_delivery                      Boolean?                      @default(false)
+  users_order_details_created_byTousers  users                         @relation("order_details_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_created_by_order_details")
+  users_order_details_created_forTousers users                         @relation("order_details_created_forTousers", fields: [created_for], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_created_for_order_details")
+
+  @@index([created_by], map: "fk_created_by_order_details")
+  @@index([created_for], map: "fk_created_for_order_details")
+  @@index([uid], map: "idx_order_details_uid")
+}
+
+model order_items {
+  id                    Int                        @id @default(autoincrement()) @db.UnsignedInt
+  uid                   String?                    @default(dbgenerated("(uuid())")) @db.Char(36)
+  order_id              Int                        @default(0)
+  item_id               Int?
+  item_type             BigInt?
+  description           String?                    @db.Text
+  quantity              Decimal                    @default(0.00) @db.Decimal(10, 2)
+  sent_quantity         Float                      @default(0)
+  cost                  Float                      @db.Float
+  sent_cost             Float                      @db.Float
+  discount_percent      Float                      @default(0)
+  customer_note         String?                    @db.Text
+  employee_note         String?                    @db.Text
+  created_date          DateTime?                  @default(now()) @db.Timestamp(0)
+  updated_date          DateTime?                  @db.Timestamp(0)
+  deleted_date          DateTime?                  @db.Timestamp(0)
+  fail_reason           String?                    @db.Text
+  final_amount          Decimal?                   @default(0.00) @db.Decimal(10, 2)
+  tax_perc              String?                    @db.VarChar(200)
+  unit_category         order_items_unit_category?
+  unit_minimum_quantity Int?
+
+  @@index([order_id], map: "idx_order_items_order_id")
+  @@index([uid], map: "idx_order_items_uid")
+}
+
+model otp_history {
+  id                Int       @id @default(autoincrement())
+  otp               Int       @db.UnsignedInt
+  created_timestamp DateTime? @default(now()) @db.Timestamp(0)
+  end_timestamp     DateTime? @db.Timestamp(0)
+  mobile_number     String?   @db.VarChar(13)
+  email             String?   @db.VarChar(50)
+}
+
+model payments {
+  id               Int                        @id @default(autoincrement())
+  payment_id       String?                    @db.VarChar(255)
+  payment_type     payments_payment_type?     @default(upi)
+  payment_sub_type payments_payment_sub_type? @default(online)
+  order_id         String?                    @db.VarChar(255)
+  signature        String?                    @db.VarChar(255)
+  status           payments_status?           @default(pending)
+  created_at       DateTime?                  @default(now()) @db.Timestamp(0)
+  updated_at       DateTime?                  @default(now()) @db.Timestamp(0)
+  uid              String?                    @db.VarChar(36)
+  amount           Decimal                    @db.Decimal(10, 2)
+  qr_id            String?                    @db.VarChar(100)
+}
+
+model pending_orders_items {
+  id               Int       @id @default(autoincrement())
+  item_id          Int?
+  item_type        String?   @db.VarChar(50)
+  order_id         String?   @db.VarChar(100)
+  missing_quantity Decimal?  @db.Decimal(10, 2)
+  status           String?   @default("pending") @db.VarChar(255)
+  created_at       DateTime? @default(now()) @db.Timestamp(0)
+  updated_at       DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model purchase_history {
+  id                BigInt    @id @default(autoincrement())
+  item_id           BigInt?
+  item_cost         Float?    @db.Float
+  item_quantity     Decimal?  @db.Decimal(10, 2)
+  created_date      DateTime? @default(now()) @db.Timestamp(0)
+  updated_timestamp DateTime? @db.Timestamp(0)
+  deleted_timestamp DateTime? @db.Timestamp(0)
+
+  @@index([item_id, created_date(sort: Desc)], map: "idx_purchase_history_item_id")
+}
+
+model section_layout {
+  id             Int            @id @default(autoincrement())
+  section_number Int
+  row_order      Int
+  stock_id       Int?
+  combo_id       Int?           @db.UnsignedInt
+  stock_master   stock_master?  @relation(fields: [stock_id], references: [stock_id], onDelete: NoAction, onUpdate: NoAction, map: "section_layout_ibfk_1")
+  combo_details  combo_details? @relation(fields: [combo_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "section_layout_ibfk_2")
+
+  @@index([combo_id], map: "combo_id")
+  @@index([stock_id, section_number, row_order], map: "idx_section_layout")
+  @@index([stock_id], map: "stock_id")
+}
+
+model stock {
+  uniq_id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  stock_id          String?   @db.VarChar(20)
+  cost              Float     @default(0)
+  quantity          Float     @default(0)
+  created_timestamp DateTime? @default(now()) @db.Timestamp(0)
+  previous_cost     Float     @default(0)
+  previous_quantity Int?      @default(0) @db.UnsignedInt
+
+  @@index([stock_id], map: "fk_stock_id")
+}
+
+model stock_master {
+  stock_id              Int                        @id @default(autoincrement())
+  category_id           Int                        @default(0)
+  name                  String                     @default("") @db.VarChar(200)
+  description           String                     @db.Text
+  units                 String                     @default("each") @db.VarChar(20)
+  cost                  Float                      @default(0)
+  inactive              Boolean                    @default(false)
+  file_url              String?                    @db.VarChar(300)
+  veg_nonveg_type       Int?
+  created_timestamp     DateTime?                  @default(now()) @db.Timestamp(0)
+  updated_timestamp     DateTime?                  @db.Timestamp(0)
+  deleted_timestamp     DateTime?                  @db.Timestamp(0)
+  quantity              Decimal?                   @default(0.00) @db.Decimal(10, 2)
+  latest_stock_id       Int?                       @db.UnsignedInt
+  about_description     String?                    @db.VarChar(500)
+  others_description    String?                    @db.VarChar(500)
+  tax_type              Int                        @default(0) @db.UnsignedInt
+  display_quantity      String?                    @db.VarChar(200)
+  minimum_quantity      Float?                     @db.Float
+  department            String                     @default("GROCERY") @db.VarChar(100)
+  discount              Decimal?                   @db.Decimal(5, 2)
+  unit_category         stock_master_unit_category
+  unit_minimum_quantity Int
+  old_stock_id          Int?                       @db.UnsignedInt
+  purchase_cost         Float                      @default(0)
+  allow_extra_discount  Boolean?                   @default(false)
+  combos                combos[]
+  section_layout        section_layout[]
+  dimensions            dimensions                 @relation(fields: [tax_type], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tax_type_id")
+
+  @@index([tax_type], map: "fk_tax_type_id")
+  @@index([stock_id], map: "idx_stock_master_stock_id")
+  @@index([veg_nonveg_type], map: "idx_stock_veg_nonveg")
+}
+
+model subscription_transaction_usage {
+  id              BigInt    @id @default(autoincrement())
+  subscription_id Int
+  transaction_id  BigInt    @db.UnsignedBigInt
+  used_amount     Decimal   @db.Decimal(15, 2)
+  created_at      DateTime? @default(now()) @db.Timestamp(0)
+
+  @@index([subscription_id], map: "subscription_id")
+  @@index([transaction_id], map: "transaction_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model subscriptions_plane {
+  id                BigInt    @id @default(autoincrement())
+  plan_name         String    @db.VarChar(255)
+  min_amount        Float     @db.Float
+  discount          Float     @db.Float
+  cashback          Float     @db.Float
+  free_shipping     Boolean
+  priority_delivery Boolean
+  additional_perks  String?   @db.Text
+  validity_days     Int?
+  inactive          Int       @default(0)
+  created_at        DateTime? @default(now()) @db.Timestamp(0)
+  updated_at        DateTime? @default(now()) @db.Timestamp(0)
+  uid               String    @db.VarChar(255)
+}
+
+model token_blocklist {
+  id                Int       @id @default(autoincrement())
+  token             String    @db.VarChar(36)
+  created_timestamp DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model units {
+  id                   Int            @id @default(autoincrement())
+  category             units_category
+  unit                 String         @db.VarChar(50)
+  abbreviation         String         @db.VarChar(20)
+  base_conversion_rate Decimal        @db.Decimal(20, 6)
+  base_unit            String         @db.VarChar(50)
+  is_si_unit           Boolean
+  is_cgs_unit          Boolean
+  inactive             Int?           @default(0) @db.TinyInt
+
+  @@unique([unit, category], map: "unit")
+  @@index([id], map: "idx_units_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model user_subscriptions {
+  id                Int       @id @default(autoincrement())
+  subscription_id   String    @db.VarChar(255)
+  user_id           Int
+  payment_id        String    @db.VarChar(255)
+  plan_name         String    @db.VarChar(255)
+  discount          Float     @db.Float
+  cashback          Float     @db.Float
+  free_shipping     Boolean
+  priority_delivery Boolean
+  additional_perks  String?   @db.Text
+  validity_days     Int?
+  status            Boolean
+  created_at        DateTime? @default(now()) @db.Timestamp(0)
+  updated_at        DateTime? @default(now()) @db.Timestamp(0)
+  min_amount        Float     @db.Float
+  uid               String?   @db.VarChar(100)
+  used_amount       Decimal   @default(0.00) @db.Decimal(15, 2)
+}
+
+model users {
+  id                                             Int             @id @default(autoincrement())
+  uid                                            String?         @unique(map: "uid") @db.VarChar(36)
+  password                                       String?         @default("") @db.VarChar(100)
+  full_name                                      String          @default("") @db.VarChar(100)
+  mobile_no                                      String?         @default("") @db.VarChar(30)
+  email                                          String?         @db.VarChar(100)
+  type                                           String?         @default("CUST") @db.VarChar(10)
+  adhar_card                                     String?         @unique(map: "adhar_card") @db.VarChar(12)
+  pancard                                        String?         @unique(map: "pancard") @db.VarChar(10)
+  inactive                                       Boolean?        @default(false)
+  updated_date                                   DateTime?       @db.Timestamp(0)
+  created_date                                   DateTime?       @default(now()) @db.Timestamp(0)
+  deleted_date                                   DateTime?       @db.Timestamp(0)
+  gender                                         String?         @db.VarChar(15)
+  birth_date                                     DateTime?       @db.Date
+  department                                     String?         @db.VarChar(50)
+  user_role                                      String?         @db.VarChar(50)
+  company_name                                   String?         @db.VarChar(100)
+  discount                                       Decimal         @default(0.00) @db.Decimal(6, 2)
+  cart                                           cart?
+  order_details_order_details_created_byTousers  order_details[] @relation("order_details_created_byTousers")
+  order_details_order_details_created_forTousers order_details[] @relation("order_details_created_forTousers")
+}
+
+model wallets {
+  id         Int       @id @default(autoincrement()) @db.UnsignedInt
+  uid        String    @unique(map: "uid") @db.Char(36)
+  balance    Decimal   @default(0.00) @db.Decimal(10, 2)
+  user_id    String    @unique(map: "wallets_unique") @db.Char(36)
+  is_frozen  Boolean   @default(false)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model wallets_transactions {
+  id                   BigInt                      @id @default(autoincrement()) @db.UnsignedBigInt
+  wallet_id            String                      @db.VarChar(36)
+  balance              Decimal                     @default(0.00) @db.Decimal(15, 2)
+  amount               Decimal                     @default(0.00) @db.Decimal(15, 2)
+  description          String?                     @db.Text
+  attachment_file      String?                     @db.Text
+  charges              Decimal                     @default(0.00) @db.Decimal(10, 2)
+  type                 String                      @db.VarChar(80)
+  status               wallets_transactions_status @default(pending)
+  performed_by         String                      @db.VarChar(36)
+  created_at           DateTime?                   @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?                   @default(now()) @db.Timestamp(0)
+  unique_code          String?                     @db.VarChar(12)
+  expires_at           DateTime?                   @db.Timestamp(0)
+  uid                  String                      @db.VarChar(50)
+  receiver_id          String?                     @db.VarChar(50)
+  reference_id         String?                     @db.VarChar(50)
+  used_in_subscription Int?
+  used_amount          Decimal                     @default(0.00) @db.Decimal(15, 2)
+  refunded_amount      Decimal                     @default(0.00) @db.Decimal(15, 2)
+}
+
+enum custom_unit_unit_category {
+  Volume
+  Weight
+  Count
+  Dining
+  Kitchen
+}
+
+enum units_category {
+  Weight
+  Volume
+  Count
+  Custom
+  Business
+  Kitchen
+  Dining
+}
+
+enum Notifications_type {
+  push
+  sms
+  email
+}
+
+enum payments_payment_type {
+  debit
+  upi
+  netbanking
+  credit
+  emi
+  wallet
+}
+
+enum Notifications_priority {
+  high
+  medium
+  low
+}
+
+enum cod_payments_payment_method {
+  online
+  cod
+  cod_wallet
+  wallet
+  other
+  cash
+}
+
+enum complaints_status {
+  RESOLVED
+  PENDING
+}
+
+enum payments_payment_sub_type {
+  online
+  offline
+}
+
+enum Notifications_status {
+  pending
+  sent
+  failed
+  delivered
+  read
+  queued_for_campaign
+}
+
+enum general_settings_value_type {
+  string
+  number
+  boolean
+}
+
+enum cart_items_type {
+  STOCK
+  COMBO
+}
+
+enum complaints_severity {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum payments_status {
+  success
+  pending
+  fail
+}
+
+enum cod_payments_payment_status {
+  pending
+  completed
+  failed
+}
+
+enum wallets_transactions_status {
+  pending
+  completed
+  failed
+}
+
+enum banner_ref_type {
+  STOCK
+  COMBO
+  CATEGORY
+}
+
+enum order_items_unit_category {
+  Volume
+  Weight
+  Count
+  Dining
+  Kitchen
+}
+
+enum deleted_order_items_unit_category {
+  Volume
+  Weight
+  Count
+  Dining
+  Kitchen
+}
+
+enum stock_master_unit_category {
+  Volume
+  Weight
+  Count
+  Dining
+  Kitchen
+}
+
+enum deleted_orders_delete_flag {
+  TEMP_DELETE
+  ARCHIVE
+}
+
+enum order_details_payment_method {
+  COD
+  ONLINE
+  WALLET
+}
+
+enum deleted_orders_payment_method {
+  COD
+  ONLINE
+  WALLET
+}

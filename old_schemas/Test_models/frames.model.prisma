@@ -1,0 +1,14 @@
+model frames {
+  frame_id                 BigInt    @default(autoincrement())
+  feed_id                  BigInt?
+  ts                       DateTime  @db.Timestamptz(6)
+  fps                      Int?
+  frame_timestamp          DateTime? @db.Timestamptz(6)
+  frame_number             BigInt?
+  frame_processing_time_ms Float?
+  inference_time_ms        Float?
+
+  @@id([ts, frame_id])
+  @@index([ts(sort: Desc)])
+  @@index([feed_id, ts(sort: Desc)], map: "idx_frames_feedid_ts")
+}

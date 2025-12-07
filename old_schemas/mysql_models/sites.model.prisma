@@ -1,0 +1,15 @@
+model sites {
+  id              Int               @id @default(autoincrement())
+  name            String?           @db.VarChar(255)
+  location        String?           @db.VarChar(255)
+  created_at      DateTime?         @default(now()) @db.DateTime(0)
+  updated_at      DateTime?         @default(now()) @db.DateTime(0)
+  main_site_id    Int?
+  captured_frames captured_frames[]
+  detection_logs  detection_logs[]
+  detection_rules detection_rules[]
+  dynamic_groups  dynamic_groups[]
+  dynamic_items   dynamic_items[]
+  feeds           feeds[]
+  static_items    static_items[]
+}

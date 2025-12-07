@@ -1,0 +1,16 @@
+enum feeds_mode {
+  detection
+  tracking
+  counting
+  pose_estimation
+  segmentation
+  classification
+  anomaly_detection
+  ocr
+  face_recognition
+  reid
+  action_recognition
+  event_detection
+  behavior_analysis
+  analytics
+}

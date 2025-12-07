@@ -1,0 +1,14 @@
+model workflow_nodes {
+  id          Int       @id @default(autoincrement())
+  workflow_id Int
+  node_id     String    @db.VarChar(100)
+  type        String    @db.VarChar(100)
+  position_x  Float     @db.Float
+  position_y  Float     @db.Float
+  data        Json?
+  created_at  DateTime? @default(now()) @db.DateTime(0)
+  updated_at  DateTime? @default(now()) @db.DateTime(0)
+  workflows   workflows @relation(fields: [workflow_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "workflow_nodes_ibfk_1")
+
+  @@index([workflow_id], map: "workflow_id")
+}

@@ -1,0 +1,26 @@
+model detections_halio {
+  id              Int      @id @default(autoincrement())
+  track_id        String?
+  cls             String?
+  confidence      Float?
+  bbox            Json?
+  video_time      Float?
+  zone            String?
+  zone_entry_time Float?
+  zone_exit_time  Float?
+  zone_times      Json?
+  frame_index     Int?
+  timestamp       DateTime @default(now()) @db.Timestamptz(6)
+  x_min           Float?
+  y_min           Float?
+  x_max           Float?
+  y_max           Float?
+  site_id         String?  @db.VarChar(50)
+  feed_id         String?  @db.VarChar(50)
+  total_objects   Int?
+  class_counts    Json?
+  roi_entries     Json?
+  roi_exits       Json?
+  roi_counts      Json?
+  object_count    Int?
+}

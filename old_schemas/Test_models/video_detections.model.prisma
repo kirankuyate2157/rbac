@@ -1,0 +1,9 @@
+model video_detections {
+  timestamp    DateTime  @db.Timestamptz(6)
+  stored_timed DateTime? @default(now()) @db.Timestamptz(6)
+  frame_id     String
+  feed_id      String
+  detections   Json
+
+  @@ignore
+}
